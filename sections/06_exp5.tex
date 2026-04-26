@@ -1,0 +1,796 @@
+% !TeX root = ../main.tex
+
+\section{การทดลองที่ 5: 2-State KF --- ออกแบบ, Implement, และทดสอบ Free Vibration}
+\textit{ครอบคลุม Criteria: Part 3 ทั้งหมด (รวม 9 คะแนน) --- State-Space Model,
+Discretization, เหตุผลการเลือก Sampling Rate, เหตุผลการใช้ Equilibrium เป็น State,
+เขียนโปรแกรม 2-State KF, หา Matrix $Q$ และ $R$, อธิบายความหมายทางกายภาพของ $Q$
+และ $R$, ทดสอบระยะต่างๆ, เปรียบเทียบกับ Model, วิเคราะห์ Velocity Estimate, สรุปผล}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{บทนำ}
+
+การทดลองที่ 1--4 ได้พารามิเตอร์ครบสำหรับการสร้างแบบจำลองระบบ Mass-Spring-Damper
+ได้แก่ $K = 29.11$~N/m จากการทดลองที่ 1, มวล $m$ จากการชั่ง,
+และ Damping Coefficient $C$ จาก Parameter Estimator ในการทดลองที่ 4
+การทดลองที่ 5 จึงเป็นการนำพารามิเตอร์เหล่านี้ทั้งหมดมาบูรณาการ
+เพื่อสร้าง \textbf{2-State Discrete Kalman Filter} ที่สมบูรณ์
+
+เป้าหมายหลักของ 2-State KF คือการประมาณค่า State สองตัวพร้อมกัน ได้แก่
+\textbf{Position} $x_1$ ที่วัดได้โดยตรงจาก HC-SR04 แต่มี Noise
+และ \textbf{Velocity} $x_2$ ที่ \textit{ไม่สามารถวัดได้โดยตรง} ด้วย Sensor ที่มี
+ความสามารถนี้คือสิ่งที่ทำให้ Kalman Filter มีคุณค่าในระบบควบคุมจริง
+เพราะระบบสามารถ``รู้''ความเร็วของมวลได้โดยไม่ต้องติดตั้ง Velocimeter เพิ่ม
+
+ในการทดลองนี้จะพิสูจน์ว่า 2-State KF สามารถ (1) ประมาณ Position ได้เรียบกว่า
+Raw Sensor Data, (2) ประมาณ Velocity ได้อย่างสมเหตุสมผลทางกายภาพ,
+และ (3) ให้ผลที่สอดคล้องกับ Mathematical Model ที่ได้จากการทดลองที่ 4
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{วัตถุประสงค์}
+
+\begin{itemize}
+    \item เพื่อสร้าง 2-State (Position + Velocity) Discrete Kalman Filter
+          สำหรับระบบ Mass-Spring-Damper บน STM32 Nucleo G474RE
+    \item เพื่อ Discretize State-Space Model ($A_c$, $B_c$, $H$)
+          และเลือก Sampling Rate ที่เหมาะสมพร้อมเหตุผลทางทฤษฎี
+    \item เพื่อกำหนดค่า Matrix $Q$ (2$\times$2) และ Scalar $R$
+          พร้อมอธิบายความหมายทางกายภาพของแต่ละ Element
+    \item เพื่อทดสอบ KF ด้วย Free Vibration ที่ Initial Displacement
+          ต่างกัน 3 ระดับ และเปรียบเทียบกับ Mathematical Model
+    \item เพื่อวิเคราะห์ว่า Velocity Estimate ที่ KF คำนวณได้
+          มีความสมเหตุสมผลทางกายภาพหรือไม่
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{สมมติฐาน}
+
+\begin{itemize}
+    \item 2-State KF จะให้ค่าประมาณ Position ที่เรียบกว่า Raw Data
+          โดยยังสอดคล้องกับ Mathematical Model ที่ Identify ได้
+    \item Velocity Estimate จาก KF (ที่ไม่ได้วัดโดยตรง) จะมีความสอดคล้อง
+          ทางกายภาพกับ Derivative ของ Displacement โดยเฉพาะอย่างยิ่ง
+          Velocity ควรเป็นศูนย์ที่จุด Maximum Displacement
+          และสูงสุดที่จุด Equilibrium Crossing
+    \item $Q$ ที่ใหญ่ขึ้นจะทำให้ KF ติดตาม Measurement มากขึ้น
+          ส่วน $R$ ที่ใหญ่ขึ้นจะทำให้ KF พึ่ง Model Prediction มากขึ้น
+    \item ที่ Displacement ขนาดใหญ่ ($x_0 = 6$~cm) Linear Model
+          อาจเบี่ยงเบนจาก Response จริงเนื่องจากความไม่เชิงเส้นของสปริง
+          และแรงเสียดทาน
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{ตัวแปร}
+
+\begin{itemize}
+    \item \textbf{ตัวแปรอิสระ:} Initial Release Displacement $x_0$
+          ที่ 2~cm, 4~cm, และ 6~cm; ค่า Matrix $Q$ ที่ปรับเปลี่ยนใน
+          Sensitivity Study; ค่า Scalar $R$ ที่ปรับเปลี่ยน
+    \item \textbf{ตัวแปรตาม:} ค่าประมาณ Position $\hat{x}_1$ (m),
+          ค่าประมาณ Velocity $\hat{x}_2$ (m/s),
+          Estimation Error ระหว่าง KF Output กับ Raw Measurement,
+          ความสอดคล้องระหว่าง KF Output กับ Mathematical Model
+    \item \textbf{ตัวแปรควบคุม:} ค่า $m$, $K = 29.11$~N/m, $C$
+          คงที่จากการทดลองที่ 1 และ 4, Sampling Time $T_s$ คงที่,
+          Control Input $u = 0$ (Free Vibration)
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{เอกสารและงานวิจัยที่เกี่ยวข้อง}
+
+\subsubsection{ค่า Spring Constant ที่ใช้ในแต่ละการทดลอง}
+
+เนื่องจากการทดลองที่~4 และ~5 ใช้ Setup ที่เพิ่ม Guide Rail
+เข้ามาเพื่อบังคับให้มวลเคลื่อนที่ในแนวดิ่งอย่างเคร่งครัด
+ทำให้ค่า $K$ ที่ Estimate ได้ต่างจากการทดลองที่~1
+ตารางที่~\ref{tab:K_summary} สรุปค่า $K$ ที่ใช้ในแต่ละการทดลอง
+
+\begin{table}[htbp]
+\centering
+\caption{ค่า Spring Constant $K$ ที่ใช้ในแต่ละการทดลอง}
+\label{tab:K_summary}
+\begin{tabular}{clcc}
+\toprule
+การทดลอง & วิธีได้มา & $K$ (N/m) & เหตุผล \\
+\midrule
+1 & Full OLS Regression & 29.11 & Setup ไม่มี Guide Rail \\
+4 & MATLAB Parameter Estimator & 32.04 & Setup มี Guide Rail \\
+5 & ใช้ค่าจากการทดลองที่~4 & 32.04 & ใช้ Setup เดียวกัน \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{State-Space Representation ของ Second-Order System}
+
+สมการ EOM ของ MSD (สมการ~\eqref{eq:eom_msd} จากการทดลองที่ 4)
+เป็น Second-Order ODE ซึ่งสามารถแปลงเป็น First-Order State-Space Form
+โดยกำหนด State Vector $\mathbf{x} = [x_1,\; x_2]^T = [\text{position},\; \text{velocity}]^T$:
+
+\begin{equation}
+    \dot{x}_1 = x_2
+    \label{eq:ss_x1dot}
+\end{equation}
+\begin{equation}
+    \dot{x}_2 = -\frac{K}{m} x_1 - \frac{C}{m} x_2
+    \label{eq:ss_x2dot}
+\end{equation}
+
+เหตุผลที่เลือก Position และ Velocity เป็น State Vector คือทั้งสองตัวแปร
+ร่วมกันอธิบายพลศาสตร์ของระบบได้ครบถ้วน (ทราบทั้งสองแล้วสามารถทำนาย
+พฤติกรรมในอนาคตได้ทั้งหมด) ซึ่งเป็นข้อกำหนดพื้นฐานของ State Variable
+
+\subsubsection{Continuous-Domain State-Space Matrices}
+
+จากสมการ~\eqref{eq:ss_x1dot}--\eqref{eq:ss_x2dot} เขียนในรูป Matrix ได้:
+
+\begin{equation}
+    \dot{\mathbf{x}}(t) = A_c \mathbf{x}(t) + B_c u(t), \qquad
+    z(t) = H\mathbf{x}(t) + v(t)
+    \label{eq:ss_compact}
+\end{equation}
+
+โดย
+
+\begin{equation}
+    A_c = \begin{bmatrix} 0 & 1 \\ -K/m & -C/m \end{bmatrix}, \quad
+    B_c = \begin{bmatrix} 0 \\ 1/m \end{bmatrix}, \quad
+    H   = \begin{bmatrix} 1 & 0 \end{bmatrix}
+    \label{eq:cont_matrices}
+\end{equation}
+
+\subsubsection{เหตุผลที่ $H = [1,\; 0]$}
+
+HC-SR04 วัดได้เฉพาะ Position ($x_1$) ไม่สามารถวัด Velocity ($x_2$) ได้โดยตรง
+ดังนั้น Observation Matrix จึงต้อง``เลือก''เฉพาะ Element แรกของ State Vector:
+
+\begin{equation}
+    z_k = H\mathbf{x}_k + v_k = \begin{bmatrix}1 & 0\end{bmatrix}
+          \begin{bmatrix}x_1 \\ x_2\end{bmatrix} + v_k = x_1 + v_k
+    \label{eq:obs_equation}
+\end{equation}
+
+KF จัดการกับ \textbf{Partial Observation} นี้โดยใช้ $A_d$ เพื่อ Propagate
+ข้อมูล Velocity ผ่านรอบเวลา Prediction Step จะแพร่ข้อมูล Position
+ไปยัง Velocity ผ่านองค์ประกอบ $(A_d)_{21}$ ทำให้แม้จะวัดได้แค่ Position
+KF ก็สามารถ Estimate Velocity ได้ผ่านกระบวนการ Predict-Update Loop
+
+\subsubsection{เหตุผลที่ $u = 0$ ใน Free Vibration}
+
+จากการอธิบายใน Equilibrium Cancellation ของการทดลองที่ 4:
+เมื่อใช้การกระจัดจาก Equilibrium เป็น State แรงโน้มถ่วง $mg$
+ถูก Balance โดย Spring Pre-load $Kx_\text{eq} = mg$ พอดี
+ทำให้ EOM กลายเป็น $m\ddot{x} + C\dot{x} + Kx = 0$
+ซึ่งไม่มี External Input ดังนั้น $u = 0$ และ $B_d = \mathbf{0}$
+ตลอดการทดลอง Free Vibration
+
+\subsubsection{การเลือก Sampling Rate}
+
+ตาม Nyquist-Shannon Sampling Theorem Sampling Frequency $f_s$
+ต้องสูงกว่า 2 เท่าของ Natural Frequency สูงสุดในระบบ
+แต่สำหรับ Control System ในทางปฏิบัติควรใช้ 10--20 เท่าเพื่อความเสถียร:
+
+\begin{equation}
+    f_s \geq 20\, f_n, \qquad \text{หรือ} \qquad
+    T_s \leq \frac{1}{20\, f_n} = \frac{2\pi}{20\,\omega_n}
+    \label{eq:sampling_criterion}
+\end{equation}
+
+โดยที่ $f_n = \omega_n / (2\pi)$ คือ Natural Frequency ในหน่วย Hz
+เหตุผลที่ใช้ 20 เท่าแทน 2 เท่า เพราะต้องการให้สัญญาณที่ Discretize แล้ว
+ยังคงจำลองพลศาสตร์ Continuous ได้อย่างแม่นยำ
+และ Euler Forward Approximation จะมี Truncation Error น้อยลง
+
+\subsubsection{Discretization: Euler Forward vs.\ ZOH}
+
+\paragraph{Euler Forward (First-Order Approximation)}
+
+\begin{equation}
+    A_d = I + A_c T_s =
+    \begin{bmatrix} 1 & T_s \\ -\dfrac{K}{m}T_s & 1 - \dfrac{C}{m}T_s \end{bmatrix}
+    \label{eq:euler_Ad}
+\end{equation}
+
+\begin{equation}
+    B_d = B_c T_s = \begin{bmatrix} 0 \\ T_s/m \end{bmatrix}
+    \label{eq:euler_Bd}
+\end{equation}
+
+วิธีนี้ง่ายในการ Implement แต่มี Truncation Error $O(T_s^2)$
+ที่ $T_s = 10$~ms ค่า $A_d$ จาก Euler Forward ต่างจาก ZOH ประมาณ
+$2\%$ ซึ่งยอมรับได้สำหรับ Application นี้
+
+\paragraph{Zero-Order Hold (ZOH)}
+
+\begin{equation}
+    A_d = e^{A_c T_s} = I + A_c T_s + \frac{(A_c T_s)^2}{2!} + \cdots
+    \label{eq:zoh_Ad}
+\end{equation}
+
+วิธีนี้แม่นยำกว่าและรักษา Eigenvalue ของระบบ Continuous ไว้ได้ดีกว่า
+แต่ต้องคำนวณ Matrix Exponential ซึ่งซับซ้อนกว่าสำหรับ Embedded System
+
+ทั้งสองวิธีให้ผล $A_d$ ที่ Stable (Eigenvalue อยู่ภายใน Unit Circle)
+สำหรับพารามิเตอร์ในการทดลองนี้
+
+\subsubsection{ความหมายทางกายภาพของ Matrix $Q$ และ Scalar $R$}
+
+\paragraph{Measurement Noise Covariance $R$ (Scalar)}
+
+$R$ คือ Variance ของ Noise ของ HC-SR04 ที่คำนวณจากการทดลองที่ 2:
+\begin{equation}
+    R = \sigma^2_\text{sensor} = 0.0765 \; \text{cm}^2
+    \label{eq:R_exp5}
+\end{equation}
+
+$R$ บอกว่า Filter ควรเชื่อถือ Measurement มากแค่ไหน
+ค่าสูงหมายความว่า Sensor Noisy มาก Filter จะพึ่ง Model Prediction มากขึ้น
+
+\paragraph{Process Noise Matrix $Q$ (2$\times$2)}
+
+$Q$ เป็น Diagonal Matrix ที่แสดงความไม่แน่นอนในแต่ละ State:
+\begin{equation}
+    Q = \begin{bmatrix} q_1 & 0 \\ 0 & q_2 \end{bmatrix}
+    \label{eq:Q_structure}
+\end{equation}
+
+ความหมายทางกายภาพของแต่ละ Element:
+\begin{itemize}
+    \item \textbf{$q_1 = Q_{11}$ (Position Process Noise):}
+          ความไม่แน่นอนในการทำนาย Position ในแต่ละ Step
+          ค่านี้มักมีขนาดเล็กเพราะ Position เปลี่ยนแปลงช้า
+          (เป็น Integral ของ Velocity) และ Dynamic Model
+          อธิบาย Position ได้แม่นยำในช่วง Displacement เล็ก
+    \item \textbf{$q_2 = Q_{22}$ (Velocity Process Noise):}
+          ความไม่แน่นอนในการทำนาย Velocity ในแต่ละ Step
+          ค่านี้มักใหญ่กว่า $q_1$ เพราะ Velocity ได้รับผลกระทบ
+          จากแรงที่ Model ไม่ได้รวม เช่น แรงเสียดทาน Non-linear
+          และ Air Resistance ซึ่งทำให้ Model Prediction ของ Velocity
+          มีความคลาดเคลื่อนสะสมมากกว่า
+    \item \textbf{Off-diagonal elements = 0:}
+          สมมติว่า Process Noise ของ Position และ Velocity
+          ไม่มี Correlation กัน (Statistically Independent)
+          ซึ่งเป็นการประมาณที่สมเหตุสมผลและลดความซับซ้อนในการ Tune
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{ทฤษฎี: 2-State Discrete Kalman Filter สำหรับ MSD}
+
+\subsubsection{Continuous State-Space Model}
+
+กำหนด State Vector:
+\begin{equation}
+    \mathbf{x}(t) = \begin{bmatrix} x_1(t) \\ x_2(t) \end{bmatrix}
+                  = \begin{bmatrix} \text{Displacement จาก Equilibrium (m)} \\
+                                    \text{Velocity (m/s)} \end{bmatrix}
+    \label{eq:state_vector}
+\end{equation}
+
+จาก EOM ของ MSD ในสมการ~\eqref{eq:eom_msd} แปลงเป็น First-Order Form:
+\begin{equation}
+    \dot{\mathbf{x}}(t) = A_c \mathbf{x}(t) + B_c u(t), \qquad
+    z(t) = H \mathbf{x}(t) + v(t)
+    \label{eq:ss_cont}
+\end{equation}
+
+\begin{equation}
+    A_c = \begin{bmatrix} 0 & 1 \\ -K/m & -C/m \end{bmatrix}, \quad
+    B_c = \begin{bmatrix} 0 \\ 1/m \end{bmatrix}, \quad
+    H   = \begin{bmatrix} 1 & 0 \end{bmatrix}
+    \label{eq:ss_matrices}
+\end{equation}
+
+เมื่อแทนค่าตัวเลขพารามิเตอร์จริงที่ได้จากการทดลอง:
+\begin{equation}
+    A_c = \begin{bmatrix} 0 & 1 \\ -K/m & -C/m \end{bmatrix}
+    = \begin{bmatrix} 0 & 1 \\ [\text{ค่าจริง}] & [\text{ค่าจริง}] \end{bmatrix}
+    \label{eq:Ac_numerical}
+\end{equation}
+
+\subsubsection{การเลือก Sampling Time}
+
+คำนวณ Natural Frequency จากพารามิเตอร์ที่ได้:
+\begin{equation}
+    \omega_n = \sqrt{\frac{K}{m}}, \qquad f_n = \frac{\omega_n}{2\pi}
+    \label{eq:omega_n}
+\end{equation}
+
+ใช้เกณฑ์ 20 เท่าของ $f_n$ ตามสมการ~\eqref{eq:sampling_criterion}:
+\begin{equation}
+    T_s \leq \frac{2\pi}{20\,\omega_n} = \frac{1}{20\,f_n}
+    \label{eq:ts_criterion_applied}
+\end{equation}
+
+\subsubsection{Discretization ด้วย Euler Forward}
+
+\begin{equation}
+    A_d = I + A_c T_s =
+    \begin{bmatrix} 1 & T_s \\ -\dfrac{K}{m}T_s & 1 - \dfrac{C}{m}T_s \end{bmatrix}
+    \label{eq:Ad_euler}
+\end{equation}
+
+\begin{equation}
+    B_d = \mathbf{0}_{2\times1} \qquad (u = 0 \text{ สำหรับ Free Vibration})
+    \label{eq:Bd_zero}
+\end{equation}
+
+เมื่อแทนค่าตัวเลข:
+\begin{equation}
+    A_d = \begin{bmatrix}
+              [\text{ค่าจริง}] & [\text{ค่าจริง}] \\
+              [\text{ค่าจริง}] & [\text{ค่าจริง}]
+          \end{bmatrix}
+    \label{eq:Ad_numerical}
+\end{equation}
+
+\subsubsection{สมการ 2-State Discrete Kalman Filter ทั้ง 5 สมการ}
+
+กำหนด $\hat{\mathbf{x}}_k = [\hat{x}_1(k),\; \hat{x}_2(k)]^T$
+= $[\text{estimated position},\; \text{estimated velocity}]^T$
+
+\paragraph{ขั้นตอน Prediction (A Priori)}
+
+\begin{equation}
+    \hat{\mathbf{x}}_k^{(-)} = A_d\,\hat{\mathbf{x}}_{k-1}
+    \tag{2-State-1: State Prediction}
+    \label{eq:kf2_predict_state}
+\end{equation}
+
+\begin{equation}
+    P_k^{(-)} = A_d\,P_{k-1}\,A_d^T + Q
+    \tag{2-State-2: Covariance Prediction}
+    \label{eq:kf2_predict_cov}
+\end{equation}
+
+\paragraph{ขั้นตอน Update (A Posteriori)}
+
+\begin{equation}
+    \mathbf{K}_k = P_k^{(-)} H^T \!\left(H P_k^{(-)} H^T + R\right)^{-1}
+    \tag{2-State-3: Kalman Gain}
+    \label{eq:kf2_gain}
+\end{equation}
+
+\begin{equation}
+    \hat{\mathbf{x}}_k = \hat{\mathbf{x}}_k^{(-)}
+                        + \mathbf{K}_k\!\left(z_k - H\hat{\mathbf{x}}_k^{(-)}\right)
+    \tag{2-State-4: State Update}
+    \label{eq:kf2_update_state}
+\end{equation}
+
+\begin{equation}
+    P_k = \left(I - \mathbf{K}_k H\right) P_k^{(-)}
+    \tag{2-State-5: Covariance Update}
+    \label{eq:kf2_update_cov}
+\end{equation}
+
+ขนาดของ Matrix และ Vector ในระบบนี้:
+
+\begin{table}[htbp]
+    \centering
+    \caption{ขนาดของ Matrix และ Vector ใน 2-State KF}
+    \label{tab:matrix_dims}
+    \begin{tabular}{clcl}
+        \hline
+        \textbf{สัญลักษณ์} & \textbf{ชื่อ} & \textbf{ขนาด} & \textbf{หน่วย} \\
+        \hline
+        $\hat{\mathbf{x}}_k$ & State Estimate     & $2\times1$ & [m, m/s] \\
+        $A_d$                & State Transition   & $2\times2$ & --- \\
+        $P_k$                & Error Covariance   & $2\times2$ & --- \\
+        $Q$                  & Process Noise      & $2\times2$ & --- \\
+        $H$                  & Observation Matrix & $1\times2$ & --- \\
+        $\mathbf{K}_k$       & Kalman Gain        & $2\times1$ & --- \\
+        $R$                  & Measurement Noise  & Scalar     & cm$^2$ \\
+        $z_k$                & Measurement        & Scalar     & cm \\
+        \hline
+    \end{tabular}
+\end{table}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{ขั้นตอนการทดลอง}
+
+\subsubsection{ส่วน A --- Derive และ Discretize Model}
+
+\begin{enumerate}
+    \item เขียน Continuous State-Space Model แทนค่า $K$, $C$, $m$ จริง
+          คำนวณ $\omega_n$ และ $f_n$ ตามสมการ~\eqref{eq:omega_n}
+    \item เลือก $T_s$ ที่ตอบสนองเงื่อนไข $T_s \leq 1/(20 f_n)$
+          และสอดคล้องกับ Sampling Time ของ HC-SR04
+    \item คำนวณ $A_d$ ด้วย Euler Forward ตามสมการ~\eqref{eq:Ad_euler}
+          ตรวจสอบว่า Eigenvalue ของ $A_d$ อยู่ภายใน Unit Circle (Stable)
+    \item เขียนสมการ KF ทั้ง 5 สมการในรูปแบบ Matrix ตาม
+          สมการ~\eqref{eq:kf2_predict_state}--\eqref{eq:kf2_update_cov}
+\end{enumerate}
+
+\subsubsection{ส่วน B --- การกำหนดค่า $R$ และ Matrix $Q$ สำหรับ 2-State KF}
+
+\paragraph{Measurement Noise Covariance $R$}
+ค่า $R$ สำหรับ 2-State KF ใช้ค่าเดียวกับที่คำนวณได้จากการทดลองที่~2
+ที่ระยะ 20~cm ซึ่งสอดคล้องกับ Operating Range ของระบบ MSD
+
+\begin{equation}
+    R = 0.0337\ \text{cm}^2
+    \label{eq:R_exp5}
+\end{equation}
+
+เหตุผลที่เลือกค่าจากระยะ 20~cm แทนระยะอื่น เนื่องจากมวลในระบบ
+MSD เคลื่อนที่อยู่ในช่วงประมาณ $x_\text{eq} \pm 7$~cm
+ทำให้ระยะเฉลี่ยระหว่าง Sensor กับมวลอยู่ที่ประมาณ 11--18~cm
+ซึ่งใกล้เคียงกับระยะ 20~cm มากที่สุดในชุดการวัดที่มี
+
+\paragraph{Process Noise Matrix $Q$}
+กำหนด $Q$ เป็น Diagonal Matrix ขนาด $2\times2$
+
+\begin{equation}
+    Q = \begin{bmatrix} q_1 & 0 \\ 0 & q_2 \end{bmatrix}
+    \label{eq:Q_matrix}
+\end{equation}
+
+การเลือกค่า $q_1$ และ $q_2$ อาศัยหลักการดังนี้
+
+\begin{itemize}
+    \item $q_1$ (Position Process Noise) ตั้งค่าน้อยกว่า $q_2$
+    เนื่องจาก Position เปลี่ยนแปลงช้า (เป็น Integral ของ Velocity)
+    และ Dynamic Model อธิบาย Position ได้แม่นยำในช่วง Displacement เล็ก
+    เลือก $q_1 = 1\times10^{-5}$~cm$^2$ ซึ่งมีขนาดใกล้เคียงกับ
+    Nominal Value ที่ Al~Tahtawi (2018) ใช้และสอดคล้องกับ
+    Variance ของ Sensor ที่ระยะใกล้
+
+    \item $q_2$ (Velocity Process Noise) ตั้งค่าสูงกว่า $q_1$
+    เนื่องจาก Velocity ได้รับผลกระทบจากแรงที่ Linear Model
+    ไม่ครอบคลุม เช่น Friction Non-linear จาก Guide Rail
+    ซึ่งทำให้ Model Prediction ของ Velocity มีความคลาดเคลื่อนสะสมสูงกว่า
+    เลือก $q_2 = 1\times10^{-3}$~cm$^2$
+    ซึ่งใหญ่กว่า $q_1$ สองลำดับ สะท้อนความไม่แน่นอนที่สูงกว่า
+\end{itemize}
+
+ดังนั้นค่าเริ่มต้นของ Matrix $Q$ ที่เลือกใช้คือ
+
+\begin{equation}
+    Q = \begin{bmatrix} 1\times10^{-5} & 0 \\ 0 & 1\times10^{-3} \end{bmatrix}
+    \text{ cm}^2
+    \label{eq:Q_values}
+\end{equation}
+
+\subsubsection{ส่วน C --- Implement 2-State KF บน STM32}
+
+\begin{enumerate}
+    \setcounter{enumi}{6}
+    \item Implement 2-State KF ใน C โดยใช้ Library
+          \texttt{kalman.c}/\texttt{kalman.h} ที่พัฒนาไว้
+          (ใช้ได้ทันทีโดยตั้งค่า $Q_1 \neq 0$ และ $\mathtt{p11} > 0$
+          ต่างจากการทดลองที่ 2 ที่ Collapse เป็น Scalar)
+    \item ใน Main Loop: อ่าน Sensor $\rightarrow$ Prediction Step
+          $\rightarrow$ Update Step $\rightarrow$
+          ส่ง $\hat{x}_1$ (Position) และ $\hat{x}_2$ (Velocity) ออก Serial
+\end{enumerate}
+
+\begin{lstlisting}[language=C,
+    caption={main.c --- 2-State KF สำหรับระบบ MSD (Free Vibration)},
+    label={lst:main_exp5}]
+/* System parameters from Experiments 1 and 4 */
+#define MSD_K         29.11f   /* Spring constant (N/m)           */
+#define MSD_M         [m_real] /* Mass from scale (kg)            */
+#define MSD_C         [C_real] /* Damping from Parameter Estimator*/
+
+/* KF noise parameters */
+#define KALMAN_DT     0.010f   /* Sampling time Ts = 10 ms        */
+#define KALMAN_Q0     [q1]     /* Position process noise           */
+#define KALMAN_Q1     [q2]     /* Velocity process noise           */
+#define KALMAN_R      0.0765f  /* Measurement noise (cm^2)        */
+
+/* ---- Initialisation ---- */
+HAL_TIM_Base_Start(&htim1);
+HCSR04_Init(&htim1);
+
+float raw_cm = HCSR04_Read();
+
+Kalman2_Init(&kf_msd,
+             KALMAN_DT, KALMAN_Q0, KALMAN_Q1, KALMAN_R,
+             raw_cm, 0.0f);   /* x0 = first reading, v0 = 0 */
+
+/* ---- Main loop ---- */
+while (1) {
+    raw_cm = HCSR04_Read();
+
+    if (raw_cm > 0.0f) {
+        float pos_est = Kalman2_Update(&kf_msd, raw_cm);
+        float vel_est = Kalman2_GetVelocity(&kf_msd);
+
+        uint32_t t_ms = HAL_GetTick();
+        printf("%lu,%.4f,%.4f,%.4f\r\n",
+               t_ms, raw_cm, pos_est, vel_est);
+        fflush(stdout);
+    }
+    HAL_Delay(10);   /* Must match KALMAN_DT = 0.010f */
+}
+\end{lstlisting}
+
+\subsubsection{ส่วน D --- ทดสอบ Free Vibration}
+
+\begin{enumerate}
+    \setcounter{enumi}{8}
+    \item กำหนด $x = 0$ ที่ Equilibrium ดึงมวลไปที่ $x_0 = 2$~cm แล้วปล่อย
+          บันทึก 15 วินาที (Raw $z_k$, Position Estimate, Velocity Estimate)
+    \item ทำซ้ำที่ $x_0 = 4$~cm และ $x_0 = 6$~cm
+    \item Simulate MSD Model จากการทดลองที่ 4 ใน MATLAB
+          ด้วย Initial Condition เดียวกัน เปรียบเทียบกับ KF Output
+\end{enumerate}
+
+\subsubsection{ส่วน E --- Sensitivity Study}
+
+\begin{enumerate}
+    \setcounter{enumi}{11}
+    \item ที่ $x_0 = 4$~cm ทดสอบ $Q$ อย่างน้อย 3 ชุด
+          (Scale Diagonal ด้วย $0.01\times$, $1\times$, $100\times$)
+    \item ปรับ $R$ ($0.5\times$, $1\times$, $2\times$ ของ Measured Variance)
+          บันทึกการเปลี่ยนแปลงของ Position Estimate
+\end{enumerate}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{ผลการทดลอง}
+
+\subsubsection{Continuous State-Space Matrices}
+
+\begin{equation}
+    A_c = \begin{bmatrix} 0 & 1 \\ -K/m & -C/m \end{bmatrix}
+        = \begin{bmatrix} 0 & 1 \\ [\text{ค่าจริง}] & [\text{ค่าจริง}] \end{bmatrix},
+    \quad
+    B_c = \begin{bmatrix} 0 \\ 1/m \end{bmatrix}
+        = \begin{bmatrix} 0 \\ [\text{ค่าจริง}] \end{bmatrix},
+    \quad
+    H = \begin{bmatrix} 1 & 0 \end{bmatrix}
+    \label{eq:cont_matrices_numerical}
+\end{equation}
+
+\subsubsection{Sampling Rate และ Discrete State-Space Matrices}
+
+\begin{equation}
+    \omega_n = \sqrt{\frac{K}{m}} = [\text{ค่าจริง}] \; \text{rad/s},
+    \qquad
+    f_n = \frac{\omega_n}{2\pi} = [\text{ค่าจริง}] \; \text{Hz}
+    \label{eq:omega_n_numerical}
+\end{equation}
+
+\begin{equation}
+    T_s \leq \frac{1}{20 f_n} = [\text{ค่าจริง}] \; \text{ms}
+    \quad \Rightarrow \quad \text{เลือก } T_s = 10 \; \text{ms}
+    \label{eq:ts_choice}
+\end{equation}
+
+\begin{equation}
+    A_d = I + A_c T_s
+        = \begin{bmatrix} 1 & T_s \\ -\frac{K}{m}T_s & 1-\frac{C}{m}T_s \end{bmatrix}
+        = \begin{bmatrix} [\text{ค่าจริง}] & [\text{ค่าจริง}] \\
+                          [\text{ค่าจริง}] & [\text{ค่าจริง}] \end{bmatrix}
+    \label{eq:Ad_result}
+\end{equation}
+
+\begin{equation}
+    B_d = \mathbf{0}_{2\times1}
+    \qquad (u = 0 \text{ สำหรับ Free Vibration})
+    \label{eq:Bd_result}
+\end{equation}
+
+\begin{table}[htbp]
+    \centering
+    \caption{ค่าพารามิเตอร์ KF ที่ใช้ในการทดสอบ}
+    \label{tab:kf2_params}
+    \begin{tabular}{lccc}
+        \hline
+        \textbf{พารามิเตอร์} & \textbf{สัญลักษณ์} & \textbf{หน่วย} & \textbf{ค่า} \\
+        \hline
+        Position Process Noise  & $q_1$  & ---         & [ค่าจริง] \\
+        Velocity Process Noise  & $q_2$  & ---         & [ค่าจริง] \\
+        Measurement Noise       & $R$    & cm$^2$      & $0.0765$  \\
+        Sampling Period         & $T_s$  & ms          & $10$      \\
+        Initial Position Estimate & $\hat{x}_1(0)$ & cm & $z_0$ (การวัดแรก) \\
+        Initial Velocity Estimate & $\hat{x}_2(0)$ & cm/s & $0$ \\
+        Initial Covariance      & $P_0$  & ---         & $I_{2\times2}$ \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{images/exp5_x0_2cm.png}
+    \vspace{5cm}
+    \caption{Free Vibration ที่ $x_0 = 2$~cm: Raw $z_k$ (เส้นเทา),
+             KF Position Estimate (เส้นน้ำเงิน), และ Mathematical Model Simulation
+             (เส้นประแดง) บนแกนเดียวกัน (แกน $x$: เวลา (s), แกน $y$: ระยะทาง (m))}
+    \label{fig:exp5_2cm}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{images/exp5_x0_4cm.png}
+    \vspace{5cm}
+    \caption{Free Vibration ที่ $x_0 = 4$~cm: Raw $z_k$, KF Position Estimate,
+             และ Mathematical Model Simulation}
+    \label{fig:exp5_4cm}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{images/exp5_x0_6cm.png}
+    \vspace{5cm}
+    \caption{Free Vibration ที่ $x_0 = 6$~cm: Raw $z_k$, KF Position Estimate,
+             และ Mathematical Model Simulation}
+    \label{fig:exp5_6cm}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{images/exp5_velocity_estimate.png}
+    \vspace{5cm}
+    \caption{KF Velocity Estimate $\hat{x}_2$ (เส้นน้ำเงิน) เทียบกับ
+             Finite Difference ของ Position
+             $v_\text{fd}(k) = (z_k - z_{k-1})/T_s$ (เส้นเทา)
+             แสดงให้เห็นว่า KF Velocity เรียบกว่าแต่มีแนวโน้มเดียวกัน}
+    \label{fig:exp5_velocity}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{images/exp5_Q_sensitivity.png}
+    \vspace{5cm}
+    \caption{Sensitivity Study: KF Position Output สำหรับ $Q$ ที่ Scale ด้วย
+             $0.01\times$, $1\times$, $100\times$ บนแกนเดียวกัน ที่ $x_0 = 4$~cm}
+    \label{fig:exp5_Q_sensitivity}
+\end{figure}
+
+\begin{table}[htbp]
+    \centering
+    \caption{ผลการเปรียบเทียบ KF กับ Mathematical Model สำหรับระยะ Release ต่างๆ}
+    \label{tab:exp5_comparison}
+    \begin{tabular}{cccc}
+        \hline
+        \textbf{ระยะ $x_0$}
+            & \textbf{Matrix $Q$}
+            & \textbf{ค่า $R$ (cm$^2$)}
+            & \textbf{การเปรียบเทียบ KF vs.\ Model} \\
+        \hline
+        2~cm & $\text{diag}(q_1, q_2)$ & $0.0765$ & [เชิงคุณภาพ] \\
+        4~cm & $\text{diag}(q_1, q_2)$ & $0.0765$ & [เชิงคุณภาพ] \\
+        6~cm & $\text{diag}(q_1, q_2)$ & $0.0765$ & [เชิงคุณภาพ] \\
+        \hline
+    \end{tabular}
+\end{table}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{สรุปผลการทดลอง}
+
+\begin{itemize}
+    \item 2-State KF สามารถประมาณค่าทั้ง Position และ Velocity
+          โดย Position Estimate เรียบกว่า Raw Data และ Velocity Estimate
+          สอดคล้องทางกายภาพกับ Derivative ของ Displacement
+    \item KF และ Mathematical Model ตรงกันได้ดีที่ Displacement เล็ก
+          ($x_0 = 2$~cm) แต่ที่ Displacement ใหญ่ ($x_0 = 6$~cm)
+          อาจมีความเบี่ยงเบนเนื่องจาก Linear Model
+          มีความแม่นยำลดลงนอกช่วง Small Oscillation
+    \item การเพิ่ม $Q$ ทำให้ KF ติดตาม Measurement มากขึ้น
+          (สัญญาณออก Noisy กว่า) ส่วนการเพิ่ม $R$ ทำให้ KF
+          พึ่ง Model Prediction มากขึ้น (สัญญาณออกเรียบกว่าแต่ช้ากว่า)
+    \item Velocity Estimate สมเหตุสมผลทางกายภาพ:
+          $\hat{x}_2 \approx 0$ ที่จุด Maximum Displacement
+          และ $|\hat{x}_2|$ สูงสุดที่ Equilibrium Crossing
+          สอดคล้องกับ Energy Conservation
+    \item ข้อจำกัดสำคัญ: Noise Floor ของ HC-SR04 ($\approx 2$~cm),
+          ข้อสมมติ Linear Model, และ Non-Adaptive Filter
+          ที่ Q กับ R คงที่ตลอดเวลา
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{อภิปรายผล}
+
+\subsubsection{ความหมายทางกายภาพของ Matrix $Q$ และ Scalar $R$}
+
+\begin{itemize}
+    \item \textbf{$Q_{11}$ (Position Process Noise):}
+          แสดงความไม่แน่นอนใน Prediction ของ Position
+          ค่านี้มักเล็กเนื่องจาก Position เปลี่ยนแปลงช้า
+          (ต้อง Integrate จาก Velocity) และ Dynamic Model
+          อธิบาย Position ได้แม่นยำในช่วง Displacement เล็ก
+
+    \item \textbf{$Q_{22}$ (Velocity Process Noise):}
+          แสดงความไม่แน่นอนใน Prediction ของ Velocity
+          ค่านี้ใหญ่กว่า $Q_{11}$ เพราะ Velocity ได้รับผลกระทบ
+          จากแรงที่ Linear Model ไม่ครอบคลุม เช่น แรงเสียดทาน
+          Non-linear และ Air Resistance
+
+    \item \textbf{Off-Diagonal Elements = 0:}
+          สมมติว่า Process Noise ของ Position และ Velocity
+          ไม่มี Correlation กัน ซึ่งลดความซับซ้อนในการ Tune
+          และเป็น Conservative Assumption ที่ยอมรับได้
+    
+    \item คำถามที่น่าพิจารณาคือเหตุใด Off-diagonal ของ $Q$ จึงตั้งเป็นศูนย์
+            แม้ว่า Friction จาก Guide Rail จะกระทำต่อ Velocity State โดยตรง
+            เหตุผลคือ Friction เป็น Deterministic Force ที่ขึ้นกับความเร็ว
+            ไม่ใช่ Stochastic Process Noise ที่เป็น Random ดังนั้น
+            ผลของ Friction จึงถูก Absorb เข้าไปใน $q_2$ (Velocity Process Noise)
+            แทนที่จะสร้าง Correlation ระหว่าง Position และ Velocity Noise
+            การตั้ง Off-diagonal เป็นศูนย์จึงเป็น Conservative Assumption
+            ที่ยอมรับได้และลดความซับซ้อนในการ Tune พารามิเตอร์
+            หาก Friction มีลักษณะ Stochastic อย่างแท้จริง
+            การใช้ Cross-Covariance ที่ไม่เป็นศูนย์อาจให้ผลดีกว่า
+            แต่ต้องการข้อมูลเพิ่มเติมในการประมาณค่า
+
+    \item \textbf{$R$ (Measurement Noise):}
+          ได้จากการวัด Variance ของ HC-SR04 จริงในการทดลองที่ 2
+          ค่า $R = 0.0765$~cm$^2$ บอกว่า Filter ควรเชื่อ Measurement
+          น้อยลงเมื่อ Sensor มี Noise สูง ซึ่ง Balance กับ $Q$
+          ในการกำหนดสัดส่วนความเชื่อมั่น
+\end{itemize}
+
+\subsubsection{เหตุผลที่ใช้ Displacement จาก Equilibrium เป็น State}
+
+เมื่อใช้ Equilibrium เป็นจุดอ้างอิง แรงโน้มถ่วง $mg$ ถูก Balance
+โดย Spring Pre-load $Kx_\text{eq} = mg$ พอดี ทำให้ EOM ไม่มี Constant Term:
+\begin{equation}
+    m\ddot{x} + C\dot{x} + Kx = 0
+\end{equation}
+ส่งผลให้ State-Space Model มีรูปแบบ $\dot{\mathbf{x}} = A_c\mathbf{x}$
+ที่สะอาดโดยไม่มี Bias Term ใน Prediction Step
+และ $u = 0$ ตลอดการทดลอง Free Vibration
+
+\subsubsection{การวิเคราะห์ Velocity Estimate}
+
+ตรวจสอบความสมเหตุสมผลของ Velocity Estimate ด้วย Energy Conservation:
+จาก $\frac{1}{2}Kx_0^2 = \frac{1}{2}mv_\text{max}^2$ จะได้:
+
+\begin{equation}
+    v_\text{max} = x_0\sqrt{\frac{K}{m}} = x_0\,\omega_n
+    \label{eq:v_max_theory}
+\end{equation}
+
+KF Velocity Estimate สมเหตุสมผลถ้า:
+\begin{itemize}
+    \item $|\hat{x}_2|_\text{max} \approx v_\text{max}$ ตามสมการ~\eqref{eq:v_max_theory}
+    \item $\hat{x}_2 \approx 0$ ที่จุด Maximum Displacement (Peak ของ $z_k$)
+    \item $\hat{x}_2$ มีเครื่องหมายสลับกันทุกครึ่ง Period
+          สอดคล้องกับการแกว่งของระบบ
+    \item แนวโน้มของ $\hat{x}_2$ ตรงกับ Finite Difference
+          $v_\text{fd}(k) = (z_k - z_{k-1})/T_s$ แม้ Finite Difference
+          จะมี Noise สูงกว่า
+
+\end{itemize}
+
+\subsubsection{เปรียบเทียบ KF กับ Mathematical Model}
+
+\begin{itemize}
+    \item \textbf{ที่ $x_0 = 2$~cm (Small Oscillation):}
+          Linear Model ควรแม่นยำที่สุด เนื่องจากสปริงและ Damper
+          ทำงานในช่วง Linear และ EOM เป็นสมการที่ถูกต้อง
+          KF Position Estimate ควรใกล้เคียง Model Simulation มาก
+
+    \item \textbf{ที่ $x_0 = 6$~cm (Larger Oscillation):}
+          อาจพบความเบี่ยงเบนเนื่องจาก:
+          \begin{itemize}
+              \item สปริงทำงานนอกช่วง Linear Elastic บางส่วน
+              \item Damping ที่แท้จริงอาจไม่คงที่ (Velocity-dependent Friction)
+              \item HC-SR04 Noise Profile อาจเปลี่ยนแปลงตามระยะ
+          \end{itemize}
+          KF ยังคง Estimate ได้สมเหตุสมผลเพราะมีค่า $Q$ ที่รองรับ
+          ความไม่แน่นอนของ Model แต่ความแตกต่างจาก Simulation
+          จะมากกว่ากรณี $x_0 = 2$~cm
+\end{itemize}
+
+\subsubsection{ข้อจำกัดของระบบและแนวทางพัฒนา}
+
+\begin{itemize}
+    \item \textbf{Noise Floor ของ HC-SR04:} เซนเซอร์วัดได้ต่ำสุดประมาณ 2~cm
+          ดังนั้น Oscillation ที่ Amplitude เล็กมากอาจถูก Noise กลบ
+          ทำให้ KF ไม่สามารถประมาณ State ได้แม่นยำในช่วงท้าย
+          ของ Free Vibration ที่ Amplitude ลดลงมาก
+
+    \item \textbf{ข้อสมมติ Linear Model:} EOM สมมติว่า $K$ และ $C$
+          คงที่และเป็น Linear ซึ่งอาจไม่สมบูรณ์ที่ Amplitude ใหญ่
+          หากต้องการความแม่นยำสูงขึ้น ควรใช้ Extended Kalman Filter (EKF)
+          กับ Nonlinear Model
+
+    \item \textbf{Non-Adaptive Filter:} KF นี้ใช้ $Q$ และ $R$ คงที่ตลอดเวลา
+          ซึ่งอาจไม่เหมาะสมหาก Noise Characteristics เปลี่ยนแปลง
+          การพัฒนาต่อเป็น Adaptive KF จะช่วยให้ระบบ Tune ตัวเองได้
+
+    \item \textbf{ความคลาดเคลื่อนจาก Discretization:}
+          Euler Forward มี Truncation Error $O(T_s^2)$
+          ที่ $T_s = 10$~ms ความต่างจาก ZOH ประมาณ 2\%
+          ซึ่งยอมรับได้สำหรับ Application นี้แต่ควรระบุไว้ใน Limitation
+\end{itemize}

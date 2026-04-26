@@ -1,0 +1,594 @@
+% !TeX root = ../main.tex
+
+\section{การทดลองที่ 4: System Identification ของ Mass-Spring-Damper}
+\textit{ครอบคลุม Criteria: Part 1 System Modeling --- เขียน EOM,
+ออกแบบการทดลองหา $C$, อธิบายหลักการหา $C$, แสดงผล Model Fit (รวม 3 คะแนน)}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{บทนำ}
+
+จากการทดลองที่ 1 ได้ค่า Spring Constant $K = 29.11$~N/m ซึ่งเป็นพารามิเตอร์แรก
+ที่จำเป็นสำหรับการสร้าง State-Space Model ของระบบ Mass-Spring-Damper
+อย่างไรก็ตามเพื่อให้แบบจำลองสมบูรณ์ยังต้องการพารามิเตอร์อีกหนึ่งตัวคือ
+Damping Coefficient $C$ ซึ่งควบคุมอัตราการสูญเสียพลังงานของระบบ
+
+$C$ ไม่สามารถวัดได้โดยตรงเหมือน $K$ เนื่องจากแรงหน่วงเป็นสัดส่วนกับ
+\textbf{ความเร็ว} ไม่ใช่ตำแหน่ง ดังนั้นวิธีที่เหมาะสมคือการทำ
+\textbf{System Identification} โดยบันทึกการตอบสนองของระบบจริง
+แล้วใช้ MATLAB Parameter Estimator หา $C$ ที่ทำให้ Simulation
+ของ Model เข้ากันได้ดีที่สุดกับข้อมูลที่วัดได้
+
+การทดลองนี้ออกแบบการทดลอง Free Vibration คือดึงมวลออกจาก Equilibrium
+แล้วปล่อยโดยไม่ใช้แรงภายนอก ซึ่งทำให้ $F(t) = 0$ และ EOM ลดรูปเหลือเพียง
+พารามิเตอร์ $m$, $K$, และ $C$ เพียงสามตัว เมื่อ Fix $m$ และ $K$ ไว้
+Parameter Estimator จะค้นหาค่า $C$ เพียงตัวเดียวที่ทำให้ Model Fit
+ข้อมูลจริงได้ดีที่สุด ค่า $C$ ที่ได้จะถูกนำไปใช้ในการทดลองที่ 5
+เพื่อสร้าง 2-State Kalman Filter สำหรับระบบ MSD
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{วัตถุประสงค์}
+
+\begin{itemize}
+    \item เพื่อ Derive และเขียน Equation of Motion (EOM) ของระบบ
+          Mass-Spring-Damper จาก Newton's Second Law อย่างสมบูรณ์
+    \item เพื่อออกแบบการทดลอง Free Vibration ที่เหมาะสม
+          สำหรับการเก็บข้อมูล Displacement เพื่อนำไป Identify พารามิเตอร์
+    \item เพื่อประมาณค่า Damping Coefficient $C$ โดยใช้
+          MATLAB Parameter Estimator (Simulink Design Optimization)
+    \item เพื่อตรวจสอบความถูกต้องของ Model โดยเปรียบเทียบผลการ Simulate
+          กับข้อมูลจริงผ่าน Goodness-of-Fit Metrics
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{สมมติฐาน}
+
+\begin{itemize}
+    \item การตอบสนองของระบบภายใต้ Free Vibration จะมีลักษณะ
+          Under-Damped Second-Order Response ($\zeta < 1$)
+          เนื่องจากระบบ MSD ในชุดทดลองนี้มีการแกว่งที่สังเกตได้ชัดเจน
+    \item Parameter Estimator จะ Converge ไปยังค่า $C$
+          ที่ให้ Goodness-of-Fit สูง (Fit\% $> 80\%$)
+    \item ค่า $C$ ที่ได้ร่วมกับ $K = 29.11$~N/m และมวล $m$
+          ที่ชั่งได้จะอธิบายพฤติกรรมของระบบจริงได้ครบถ้วนในช่วง
+          Displacement ขนาดเล็ก
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{ตัวแปร}
+
+\begin{itemize}
+    \item \textbf{ตัวแปรอิสระ:} Initial Displacement $x_0$ (m) ก่อน Release
+          (ประมาณ 2--3~cm)
+    \item \textbf{ตัวแปรตาม:} Displacement ตามเวลา $x(t)$ วัดด้วย HC-SR04,
+          ค่า Damping Coefficient $C$ ที่ประมาณได้ (N$\cdot$s/m),
+          Damping Ratio $\zeta$
+    \item \textbf{ตัวแปรควบคุม:} มวล $m$ (kg) คงที่ตลอดการทดลอง,
+          ค่า $K = 29.11$~N/m จากการทดลองที่ 1,
+          Sampling Time 10~ms, ความเร็วเริ่มต้น $\dot{x}(0) = 0$
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{เอกสารและงานวิจัยที่เกี่ยวข้อง}
+
+\subsubsection{Equation of Motion ของ Mass-Spring-Damper}
+
+เมื่อพิจารณามวล $m$ ในระบบ Mass-Spring-Damper แบบแนวดิ่ง
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.3\textwidth]{/Users/thadzy/Documents/01_Active/University/FRA233-Control/Lab3/FRA233_Lab3_Report/images/FBD.png}
+    \caption{Free Body Diagram ของมวลในระบบ Mass-Spring-Damper
+             แสดงแรงที่กระทำต่อมวลในทิศทาง $x$ (แนวดิ่ง)}
+    \label{fig:fbd_msd}
+\end{figure}    
+มีแรงกระทำต่อมวล 3 แรงหลัก ได้แก่ แรงจากสปริง $-Kx$,
+แรงหน่วง $-C\dot{x}$, และแรงภายนอก $F(t)$
+เมื่อนำ Newton's Second Law ($\Sigma F = ma$) มาใช้จะได้:
+
+\begin{equation}
+    m\ddot{x} = -Kx - C\dot{x} + F(t)
+    \label{eq:newton_msd}
+\end{equation}
+
+จัดรูปใหม่ได้ EOM มาตรฐานของระบบ Second-Order:
+
+\begin{equation}
+    m\ddot{x} + C\dot{x} + Kx = F(t)
+    \label{eq:eom_msd}
+\end{equation}
+
+โดยที่ $m$ คือมวล (kg), $C$ คือ Damping Coefficient (N$\cdot$s/m),
+$K$ คือ Spring Constant (N/m), $x$ คือการกระจัดจาก Equilibrium (m),
+และ $F(t)$ คือแรงภายนอก (N) ซึ่งในกรณี Free Vibration มีค่า $F(t) = 0$
+
+\subsubsection{เหตุผลที่ใช้ Displacement จาก Equilibrium เป็น State}
+
+หากใช้ตำแหน่งสัมบูรณ์ $x_\text{abs}$ EOM จะมีเทอม Constant $mg$:
+
+\begin{equation}
+    m\ddot{x}_\text{abs} + C\dot{x}_\text{abs} + K x_\text{abs} = mg
+    \label{eq:eom_absolute}
+\end{equation}
+
+เมื่อกำหนด $x = x_\text{abs} - x_\text{eq}$ โดยที่ $K x_\text{eq} = mg$
+เทอม $mg$ จะ Cancel กับ $K x_\text{eq}$ พอดี:
+
+\begin{equation}
+    m\ddot{x} + C\dot{x} + K(x + x_\text{eq}) = mg
+    \;\Rightarrow\;
+    m\ddot{x} + C\dot{x} + Kx = mg - Kx_\text{eq} = 0
+    \label{eq:equilibrium_cancel}
+\end{equation}
+
+ทำให้ EOM ในสมการ~\eqref{eq:eom_msd} ไม่มี Constant Term
+ซึ่งสะดวกต่อการสร้าง State-Space Model
+และไม่ต้องจัดการ Input Offset เพิ่มเติมใน Kalman Filter
+
+\subsubsection{Damping Ratio และประเภทของ Response}
+
+Damping Ratio $\zeta$ เป็นพารามิเตอร์ไร้มิติที่บอกว่าระบบสูญเสียพลังงาน
+และหยุดการแกว่งได้เร็วแค่ไหน นิยามโดยเปรียบเทียบ $C$ จริงกับ
+Critical Damping Coefficient $C_c = 2\sqrt{Km}$:
+
+\begin{equation}
+    \zeta = \frac{C}{C_c} = \frac{C}{2\sqrt{Km}}
+    \label{eq:damping_ratio}
+\end{equation}
+
+และ Natural Frequency $\omega_n$ นิยามเป็น:
+
+\begin{equation}
+    \omega_n = \sqrt{\frac{K}{m}}
+    \label{eq:natural_freq}
+\end{equation}
+
+ค่า $\zeta$ กำหนดลักษณะของ Response โดยตรง:
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{/Users/thadzy/Documents/01_Active/University/FRA233-Control/Lab3/FRA233_Lab3_Report/images/damp.png}
+    \caption{ลักษณะของการตอบสนองของระบบแบบ Step Input
+             ตามค่า Damping Ratio $\zeta$}
+    \label{fig:damp_ratio}
+\end{figure}    
+
+\begin{itemize}
+    \item \textbf{Under-Damped ($\zeta < 1$):} ระบบแกว่งข้าม Equilibrium
+          ไปมา โดยแอมพลิจูดลดลงแบบ Exponential จนหยุดนิ่ง
+          รากของสมการลักษณะเฉพาะเป็นจำนวนเชิงซ้อน Conjugate
+    \item \textbf{Critically-Damped ($\zeta = 1$):} ระบบกลับสู่ Equilibrium
+          เร็วที่สุดโดยไม่มีการแกว่ง รากซ้ำกัน (Real and Repeated Roots)
+    \item \textbf{Over-Damped ($\zeta > 1$):} ระบบไม่แกว่ง แต่กลับสู่
+          Equilibrium ช้ากว่า Critically-Damped
+          รากต่างกัน (Real and Distinct Roots)
+\end{itemize}
+
+\subsubsection{MATLAB Parameter Estimator (Simulink Design Optimization)}
+
+MATLAB Parameter Estimator ทำงานโดยใช้ Algorithm ทางคณิตศาสตร์
+(เช่น Nonlinear Least Squares) เพื่อค้นหาค่าพารามิเตอร์ที่ทำให้
+ผลต่างระหว่าง Simulation กับข้อมูลจริงมีค่าน้อยที่สุด
+โดยใช้ Objective Function:
+
+\begin{equation}
+    J(C) = \sum_{k=1}^{N}
+           \left[ x_\text{measured}(t_k) - x_\text{simulated}(t_k;\,C) \right]^2
+    \label{eq:param_est_cost}
+\end{equation}
+
+Algorithm จะค้นหาค่า $C$ ที่ทำให้ $J(C)$ มีค่าต่ำที่สุด
+โดย Fix ค่า $K$ และ $m$ ไว้ตลอดกระบวนการ
+สำหรับการสร้าง Simulink Model ต้องจัดรูป EOM
+ให้อยู่ในรูปที่แก้หาความเร่งได้:
+
+\begin{equation}
+    \ddot{x} = \frac{1}{m}\!\left(-C\dot{x} - Kx\right)
+    \quad \text{(กรณี Free Vibration: }F(t) = 0\text{)}
+    \label{eq:simulink_accel}
+\end{equation}
+
+จากนั้น Define State $v = \dot{x}$ เพื่อแปลงเป็น First-Order
+State Equations สำหรับ Simulink:
+
+\begin{equation}
+    \dot{x} = v, \qquad
+    \dot{v} = \frac{-Cv - Kx}{m}
+    \label{eq:simulink_state}
+\end{equation}
+
+\subsubsection{Goodness-of-Fit Metrics}
+
+เพื่อประเมินความถูกต้องของ Model ที่ Identify ได้ใช้ตัวชี้วัด 3 ตัว ดังนี้
+
+\paragraph{RMSE (Root Mean Square Error)}
+
+บอกขนาดของ Error โดยเฉลี่ยในหน่วยเดียวกับข้อมูลจริง
+ยิ่งเข้าใกล้ 0 ยิ่งดี:
+
+\begin{equation}
+    \text{RMSE} = \sqrt{\frac{1}{N} \sum_{i=1}^{N} (y_i - \hat{y}_i)^2}
+    \label{eq:rmse}
+\end{equation}
+
+\paragraph{NRMSE (Normalized RMSE)}
+
+นำ RMSE หารด้วยพิสัยหรือค่าเฉลี่ยของข้อมูลจริง
+เพื่อให้ค่าออกมาเป็นสัดส่วนที่เทียบกันได้ง่าย ไม่มีหน่วย:
+
+\begin{equation}
+    \text{NRMSE} = \frac{\text{RMSE}}{\max(y_i) - \min(y_i)}
+    \label{eq:nrmse}
+\end{equation}
+
+\paragraph{Fit Percentage (Percent Fit)}
+
+ตัวชี้วัดที่ MATLAB Parameter Estimator รายงานโดยตรง
+บอกว่า Model อธิบายความแปรปรวนของข้อมูลจริงได้กี่เปอร์เซ็นต์
+100\% คือ Model ทับข้อมูลจริงทุกจุด, 0\% คือ Model อธิบายอะไรไม่ได้เลย:
+
+\begin{equation}
+    \text{Fit} = 100 \times
+    \left(1 - \frac{\|\mathbf{y} - \hat{\mathbf{y}}\|}
+                    {\|\mathbf{y} - \bar{y}\,\mathbf{1}\|}\right)
+    \label{eq:fit_percent}
+\end{equation}
+
+โดยที่ $\|\cdot\|$ คือ Euclidean Norm, $\bar{y}$ คือค่าเฉลี่ยของข้อมูลจริง
+
+\subsection{การปรับปรุง Setup การทดลอง}
+ 
+ในการทดลองที่ 1 สปริงถูกติดตั้งอย่างอิสระ ทำให้มวล (ฐานหนัก $m = 0.290$~kg)
+มีโอกาสแกว่งออกนอกแนวดิ่งเล็กน้อย ส่งผลให้ HC-SR04
+อ่านค่าระยะทางได้คลาดเคลื่อน เนื่องจากลำคลื่นอัลตราโซนิคต้องการพื้นผิวสะท้อน
+ที่ตั้งฉากกับทิศทางการส่งคลื่น
+ 
+การทดลองที่ 4 จึงปรับ Setup ใหม่โดยขยับเสาไกด์ (Guide Rail) เข้ามาชิดกับ
+ฐานมวล ทำให้ฐานขนานกับพื้นและเคลื่อนที่ในแนวดิ่งได้ตรงยิ่งขึ้น
+ส่งผลให้ Sensor อ่านค่าได้เสถียร อย่างไรก็ตาม การที่ฐานสัมผัสกับเสาไกด์
+ทำให้เกิดแรงเสียดทาน (Friction) ในแนวดิ่งเพิ่มเติม ซึ่งส่งผลสองประการดังนี้
+ 
+\begin{itemize}
+    \item \textbf{ค่า $C$ ที่ Estimate ได้สูงกว่าความเป็นจริงของ Damper อย่างเดียว:}
+          $C_\text{eff}$ ที่ได้จาก Parameter Estimator สะท้อนผลรวมของ
+          Damping จริงของ Damper และ Friction ของ Guide Rail
+          จึงถือเป็น Effective Damping Coefficient
+          ที่ตรงกับระบบที่ใช้ในการทดลองที่ 5 มากที่สุด
+ 
+    \item \textbf{ค่า $K$ ที่ Estimate ได้เปลี่ยนจาก Exp 1:}
+          การปรับ Setup ทำให้ระยะ Pre-load ของสปริงและแนวการรับแรงเปลี่ยนไปบางส่วน
+          ดังนั้น Parameter Estimator จึง Estimate ทั้ง $K$ และ $C$
+          พร้อมกันจากข้อมูล Free Vibration จริงของ Setup นี้
+          แทนที่จะ Fix $K = 29.11$~N/m จากการทดลองที่ 1
+\end{itemize}
+ 
+Simulink Model ที่สร้างขึ้นสอดคล้องกับ Setup นี้ โดย Output ของ Model
+คือ Absolute Distance จาก Sensor (cm) ไม่ใช่ Displacement จาก Equilibrium
+จึงต้องบวก Offset $x_\text{eq} = 11.3$~cm เข้าไปใน Model
+ตามระยะที่ Sensor อ่านได้ที่ตำแหน่ง Equilibrium จริง
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{ขั้นตอนการทดลอง}
+
+\textbf{ส่วนที่~1: เตรียมชุดทดลองและเก็บข้อมูล Free Vibration}
+
+\begin{enumerate}
+    \item ประกอบชุด Mass-Spring-Damper วาง HC-SR04 ด้านล่างชี้ขึ้น
+          เพื่อวัด Displacement ของมวลในแนวดิ่ง
+    \item ชั่งมวล $m$ ด้วยเครื่องชั่ง บันทึกค่าเป็น kg
+    \item ตั้งระบบให้มวลอยู่ที่ Equilibrium Position ยืนยันว่า
+          HC-SR04 อ่านค่า Baseline คงที่ กำหนดตำแหน่งนี้เป็น $x = 0$
+    \item ดึงมวลขึ้นจาก Equilibrium เป็นระยะประมาณ 7.2 cm จนสปริงหดแล้วปล่อยโดยไม่ออกแรง
+          ($\dot{x}(0) = 0$) บันทึก Oscillation จนกว่าจะ Damp Out
+          (อย่างน้อย 10 วินาที) ส่งข้อมูลผ่าน Serial 115200 baud
+    \item ทำซ้ำการ Release 3 ครั้งเพื่อตรวจสอบ Repeatability
+          บันทึกทุก Dataset แยกไฟล์
+\end{enumerate}
+
+\textbf{ส่วนที่~2: System Identification ด้วย MATLAB Parameter Estimator}
+
+\begin{enumerate}
+    \item Import ข้อมูล Displacement จาก Serial ลงใน MATLAB
+          แปลงหน่วยเป็นเมตร กำหนด Equilibrium เป็นค่าอ้างอิง
+    \item สร้าง Simulink Model ของ MSD โดยใช้ State Equations
+          ตามสมการ~\eqref{eq:simulink_state}:
+          Input $u = 0$, Initial Condition $x(0) = x_0$, $v(0) = 0$
+    \item เปิด Simulink Design Optimization กำหนด $C$ เป็น Parameter
+          ที่ต้องการ Estimate โดย Fix $K = 29.11$~N/m และ $m$ ไว้
+    \item รัน Estimator จนกว่าจะ Converge บันทึกค่า $C$ ที่ได้
+    \item คำนวณ $\zeta$ จากสมการ~\eqref{eq:damping_ratio}
+          และจัดประเภท Damping
+    \item Overlay กราฟ Model Simulation กับ Measured Data
+          บันทึกค่า Fit\%, RMSE
+\end{enumerate}
+
+\subsection{ผลการทดลอง}
+ 
+\subsubsection{Equation of Motion}
+ 
+จาก Newton's Second Law สำหรับระบบ Mass-Spring-Damper
+ที่ใช้ Displacement จาก Equilibrium เป็น State:
+ 
+\begin{equation}
+    m\ddot{x} + C\dot{x} + Kx = 0
+    \quad \text{(Free Vibration)}
+    \label{eq:eom_free_vib}
+\end{equation}
+ 
+โดยพารามิเตอร์ที่ทราบจากการทดลองที่ 1: $K_\text{Exp1} = 29.11$~N/m
+และมวล $m = 0.290$~kg
+ 
+\subsubsection{Outlier Analysis ของผล Parameter Estimation}
+ 
+จากการทำซ้ำ 5 Trials พบว่าค่า $C$ ของ Trial 8 มีค่าสูงผิดปกติ
+จึงทำการตรวจสอบด้วยวิธี IQR (Interquartile Range)
+ 
+\begin{table}[htbp]
+    \centering
+    \caption{ผลการ Estimate พารามิเตอร์ $K$ และ $C$ จาก 5 Trials
+             (MATLAB Parameter Estimator, Simulink Design Optimization)}
+    \label{tab:param_est_raw}
+    \begin{tabular}{cccc}
+        \hline
+        \textbf{Trial} & \textbf{$K$ (N/m)} & \textbf{$C$ (N$\cdot$s/m)} & \textbf{หมายเหตุ} \\
+        \hline
+        1 & 33.5482 & 0.3961 & --- \\
+        4 & 31.4963 & 0.3760 & --- \\
+        5 & 33.2512 & 0.4184 & --- \\
+        7 & 29.8704 & 0.3623 & --- \\
+        8 & 30.9629 & 0.9792 & Outlier (IQR) \\
+        \hline
+    \end{tabular}
+\end{table}
+ 
+การตรวจสอบ Outlier ด้วยวิธี IQR สำหรับค่า $C$
+มีขั้นตอนดังนี้
+ 
+\begin{enumerate}
+    \item เรียงค่า $C$ จากน้อยไปมาก:
+          $\{0.3623,\; 0.3760,\; 0.3961,\; 0.4184,\; 0.9792\}$
+    \item คำนวณ Quartile:
+          $Q_1 = 0.3760$, $Q_3 = 0.4184$,
+          $\text{IQR} = Q_3 - Q_1 = 0.0424$
+    \item กำหนด Fence:
+          \begin{align}
+              \text{Lower fence} &= Q_1 - 1.5 \times \text{IQR}
+                                  = 0.3760 - 0.0635 = 0.3125 \notag \\
+              \text{Upper fence} &= Q_3 + 1.5 \times \text{IQR}
+                                  = 0.4184 + 0.0635 = 0.4819 \notag
+          \end{align}
+    \item Trial 8 มีค่า $C = 0.9792 > 0.4819$ จึงถือเป็น Outlier
+          และตัดออกจากการคำนวณค่าเฉลี่ย
+\end{enumerate}
+ 
+\subsubsection{สถิติของพารามิเตอร์ที่ได้}
+ 
+\begin{table}[htbp]
+    \centering
+    \caption{สถิติของ $K$ และ $C$ ก่อนและหลังตัด Outlier}
+    \label{tab:param_stats}
+    \begin{tabular}{lccccc}
+        \hline
+        \textbf{กลุ่ม} & \textbf{$n$}
+            & \textbf{$\bar{K}$ (N/m)} & \textbf{S.D.($K$)}
+            & \textbf{$\bar{C}$ (N$\cdot$s/m)} & \textbf{S.D.($C$)} \\
+        \hline
+        ทั้งหมด (5 Trials) & 5 & 31.83 & 1.56 & 0.5064 & 0.2652 \\
+        ไม่รวม Trial 8     & 4 & 32.04 & 1.71 & 0.3882 & 0.0245 \\
+        \hline
+    \end{tabular}
+\end{table}
+ 
+การตัด Outlier ทำให้ S.D. ของ $C$ ลดลงจาก 0.2652 เป็น 0.0245~N$\cdot$s/m
+(ลดลง 90.8\%) ขณะที่ S.D. ของ $K$ ไม่เปลี่ยนแปลงมากนัก
+ยืนยันว่า Trial 8 มีผลกระทบต่อ $C$ อย่างมีนัยสำคัญ
+ 
+\subsubsection{Simulink Model และ Parameter Estimator}
+ 
+\begin{figure}[htbp]
+    \centering
+    % TODO: แทนด้วยรูป Simulink Model จริง
+    \includegraphics[width=0.90\textwidth]{/Users/thadzy/Documents/01_Active/University/FRA233-Control/Lab3/FRA233_Lab3_Report/images/Simulink.png}
+    \caption{Simulink Model ของระบบ MSD สำหรับ Parameter Estimation
+             แสดงโครงสร้าง Feedback Loop ของ $\ddot{x} = (-C\dot{x} - Kx)/m$
+             พร้อม Offset $x_\text{eq} = 11.3$~cm เพื่อแปลง Displacement
+             เป็น Absolute Distance ที่ Sensor วัดได้}
+    \label{fig:exp4_simulink}
+\end{figure}
+ 
+Model ถูกสร้างตามสมการ~\eqref{eq:simulink_state} โดยมี Offset
+$x_\text{eq} = 11.3$~cm บวกเข้าไปที่ Output เนื่องจาก Sensor
+อ่านค่า Equilibrium Position ได้ 11.3~cm จาก Sensor ถึงมวล
+Parameter Estimator จึง Fit กับ Absolute Distance
+ไม่ใช่ Displacement จาก Equilibrium โดยตรง
+ 
+\begin{figure}[htbp]
+    \centering
+    % TODO: แทนด้วยกราฟ Repeatability จริง (3 Trials ซ้อนกัน)
+    \includegraphics[width=0.85\textwidth]{/Users/thadzy/Documents/01_Active/University/FRA233-Control/Lab3/FRA233_Lab3_Report/images/c.png}
+    \caption{Time-Domain Plot ของ Displacement $x(t)$
+             (แกน $x$: เวลา (s), แกน $y$: ระยะทาง (cm))}
+    \label{fig:exp4_repeatability}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{ผลการประมาณค่าพารามิเตอร์และ Goodness-of-Fit จาก MATLAB Parameter Estimator}
+\label{tab:param_fit}
+\begin{tabular}{lcccccc}
+\toprule
+Trial & $K$ (N/m) & $C$ (N$\cdot$s/m) & RMSE (cm) & NRMSE & Fit\% & หมายเหตุ \\
+\midrule
+1 & 33.5482 & 0.3961 & 0.522 & 0.0585 & [จากเพื่อน] & — \\
+4 & 31.4963 & 0.3760 & 0.387 & 0.0399 & [จากเพื่อน] & — \\
+5 & 33.2512 & 0.4184 & 0.462 & 0.0524 & [จากเพื่อน] & — \\
+7 & 29.8704 & 0.3623 & 0.515 & 0.0451 & [จากเพื่อน] & — \\
+8 & 30.9629 & 0.9792 & 0.481 & 0.0475 & [จากเพื่อน] & Outlier (IQR) \\
+\midrule
+\multicolumn{2}{l}{เฉลี่ย (Trial 1,4,5,7)} & & 0.472 & 0.0490 & [จากเพื่อน] & \\
+\bottomrule
+\end{tabular}
+\end{table}
+ 
+\begin{figure}[htbp]
+    \centering
+    % TODO: แทนด้วยกราฟ Model Fit จริง
+    \includegraphics[width=0.85\textwidth]{/Users/thadzy/Documents/01_Active/University/FRA233-Control/Lab3/FRA233_Lab3_Report/images/Figure 12b.png}
+    \caption{Model-Fit Plot: Simulation จาก Parameter Estimator (เส้นประสีแดง)
+             เทียบกับ Measured Data (เส้นทึบสีน้ำเงิน)
+             (แกน $x$: เวลา (s), แกน $y$: ระยะทาง (cm))}
+    \label{fig:exp4_model_fit}
+\end{figure}
+ 
+\subsubsection{พารามิเตอร์สุดท้ายที่ได้จากการทดลอง}
+ 
+ใช้ค่าเฉลี่ยจาก 4 Trials ที่ผ่าน Outlier Test เป็นค่าสุดท้าย
+สำหรับนำไปใช้ในการทดลองที่ 5
+ 
+\begin{table}[htbp]
+    \centering
+    \caption{พารามิเตอร์สุดท้ายของระบบ Mass-Spring-Damper
+             (เฉลี่ยจาก 4 Trials, ตัด Trial 8 ออกเป็น Outlier)}
+    \label{tab:msd_params}
+    \begin{tabular}{lcccc}
+        \hline
+        \textbf{พารามิเตอร์} & \textbf{สัญลักษณ์}
+            & \textbf{หน่วย} & \textbf{ค่า} & \textbf{S.D.} \\
+        \hline
+        มวล                  & $m$          & kg           & 0.290    & --- \\
+        Spring Constant      & $K$          & N/m          & 32.04    & 1.71 \\
+        Damping Coefficient  & $C$          & N$\cdot$s/m  & 0.3882   & 0.0245 \\
+        Natural Frequency    & $\omega_n$   & rad/s        & 10.51    & --- \\
+        Natural Frequency    & $f_n$        & Hz           & 1.673    & --- \\
+        Critical Damping     & $C_c$        & N$\cdot$s/m  & 6.097    & --- \\
+        Damping Ratio        & $\zeta$      & ---          & 0.0637   & --- \\
+        ประเภท Damping       & ---          & ---          & \multicolumn{2}{l}{Under-Damped} \\
+        Fit Percentage       & Fit\%        & \%           & [ข้อมูลจริง] & --- \\
+        RMSE                 & ---          & cm           & [ข้อมูลจริง] & --- \\
+        \hline
+    \end{tabular}
+\end{table}
+ 
+โดยที่
+ 
+\begin{align}
+    \omega_n &= \sqrt{\frac{K}{m}} = \sqrt{\frac{32.04}{0.290}}
+               = 10.51 \text{ rad/s}
+               \label{eq:omega_n_calc} \\[4pt]
+    C_c      &= 2\sqrt{Km} = 2\sqrt{32.04 \times 0.290}
+               = 6.097 \text{ N$\cdot$s/m}
+               \label{eq:cc_calc} \\[4pt]
+    \zeta    &= \frac{C}{C_c} = \frac{0.3882}{6.097}
+               = 0.0637
+               \label{eq:zeta_calc}
+\end{align}
+ 
+ค่า $\zeta = 0.0637 \ll 1$ ยืนยันว่าระบบอยู่ในสภาวะ Under-Damped
+สอดคล้องกับที่สังเกตเห็นการแกว่งชัดเจนในการทดลอง
+
+\subsubsection{การวิเคราะห์ความถูกต้องของแบบจำลอง}
+
+จากตารางที่~\ref{tab:param_fit} ค่า RMSE เฉลี่ยของ 4 Trial ที่ผ่าน
+Outlier Test อยู่ที่ 0.472~cm และค่า NRMSE อยู่ที่ 0.049 
+ซึ่งหมายความว่าความคลาดเคลื่อนเฉลี่ยของ Model อยู่ที่ประมาณ 4.9\%
+ของพิสัยของสัญญาณ ค่า Fit\% ที่ได้จาก MATLAB Parameter Estimator
+จะถูกรายงานเพิ่มเติมเมื่อได้ผลจากการ Estimate
+
+ความคลาดเคลื่อนที่เกิดขึ้นมีสาเหตุหลักสามประการ ประการแรกคือ
+สัญญาณรบกวนของ HC-SR04 ที่มี Variance สูงถึง 0.033~cm$^2$ 
+ที่ระยะ 20~cm ทำให้ Measured Signal มี Noise ปนอยู่ตลอด
+การ Fit กับ Smooth ODE Solution จึงมี Residual จาก Noise 
+โดยธรรมชาติ ประการที่สองคือ Friction จาก Guide Rail 
+ทำให้ Effective Damping ไม่คงที่ตามความเร็ว 
+Linear Model จึงไม่สามารถ Fit พฤติกรรมจริงได้อย่างสมบูรณ์
+โดยเฉพาะ Trial 8 ที่มีค่า $C = 0.9792$~N$\cdot$s/m 
+ซึ่งสูงกว่า Trial อื่นมากกว่า 2 เท่า และถูกระบุเป็น Outlier
+ด้วยวิธี IQR ประการที่สามคือ Linear Spring Model 
+สมมติว่า $K$ คงที่ตลอดช่วง Displacement 
+ซึ่งอาจไม่สมบูรณ์เมื่อสปริงทำงานนอกช่วง Linear Elastic
+
+อย่างไรก็ตาม ค่า $\bar{K} = 32.04$~N/m และ 
+$\bar{C} = 0.3882$~N$\cdot$s/m ที่ได้มีความสม่ำเสมอเพียงพอ
+(S.D. ของ $C$ ลดลง 90.8\% หลังตัด Outlier) 
+สำหรับการนำไปสร้าง Discrete State Matrix $A_d$ 
+ใน 2-State Kalman Filter ของการทดลองที่~5
+ 
+%% ─── แทนที่ \subsection{สรุปผลการทดลอง} ─────────────────────────────────
+ 
+\subsection{สรุปผลการทดลอง}
+ 
+\begin{itemize}
+    \item ได้ค่า Spring Constant $\bar{K} = 32.04 \pm 1.71$~N/m
+          และ Damping Coefficient $\bar{C} = 0.3882 \pm 0.0245$~N$\cdot$s/m
+          จากการ Estimate 4 Trials ที่ผ่าน Outlier Test (ตัด Trial 8 ออก)
+ 
+    \item Trial 8 ถูกระบุเป็น Outlier ด้วยวิธี IQR โดยมีค่า
+          $C = 0.9792$~N$\cdot$s/m ซึ่งเกิน Upper Fence ที่ 0.4819~N$\cdot$s/m
+          อาจเกิดจากการสัมผัสระหว่างฐานมวลและเสาไกด์ที่รุนแรงผิดปกติ
+          ในรอบนั้น
+ 
+    \item ค่า $K$ ที่ Estimate ได้ (32.04~N/m) สูงกว่าค่าจากการทดลองที่ 1
+          (29.11~N/m) ประมาณ 10\% เนื่องจาก Setup ที่เปลี่ยนแปลง
+          จึงใช้ค่าใหม่นี้ใน State-Space Model ของการทดลองที่ 5
+ 
+    \item ระบบอยู่ในสภาวะ Under-Damped ($\zeta = 0.0637$)
+          สอดคล้องกับสมมติฐานและการสังเกตการแกว่งในการทดลอง
+ 
+    \item ค่าพารามิเตอร์ $m = 0.290$~kg, $K = 32.04$~N/m,
+          $C = 0.3882$~N$\cdot$s/m จะถูกนำไปสร้าง Discrete State Matrix $A_d$
+          ใน 2-State Kalman Filter ของการทดลองที่ 5
+\end{itemize}
+ 
+%% ─── แทนที่ \subsection{อภิปรายผล} ──────────────────────────────────────
+ 
+\subsection{อภิปรายผล}
+\begin{itemize}
+    \item \textbf{ผลกระทบของ Friction ต่อค่า $C$ ที่ Estimate ได้:}
+          ค่า $C_\text{eff} = 0.3882$~N$\cdot$s/m ที่ได้สะท้อนผลรวมของ
+          Damping จาก Damper และ Friction จาก Guide Rail
+          ซึ่งเป็น Effective Damping ของระบบจริงในการทดลองที่ 5
+          การพยายามแยก Damping ออกจาก Friction ต้องการการทดลองเพิ่มเติม
+          เช่น การวัด Friction Force โดยตรง ซึ่งอยู่นอกขอบเขตการทดลองนี้
+ 
+    \item \textbf{ความแตกต่างของ $K$ ระหว่าง Exp 1 และ Exp 4:}
+          ค่า $K$ เพิ่มขึ้นจาก 29.11 เป็น 32.04~N/m (เพิ่มขึ้น 10.1\%)
+          เมื่อ Setup เปลี่ยน เนื่องจากการปรับตำแหน่งเสาไกด์
+          ทำให้สปริงรับแรงในแนวดิ่งมากขึ้น ลด Component
+          ของแรงในแนวเฉียงที่ไม่ได้ร่วมกับ Hooke's Law ในทิศดิ่ง
+          ดังนั้น $K = 32.04$~N/m จึงแม่นยำกว่าสำหรับ Setup ของ Exp 4--5
+ 
+    \item \textbf{หลักการทำงานของ Parameter Estimator:}
+          Simulink Design Optimization ใช้ Algorithm Nonlinear Least Squares
+          ปรับค่า $K$ และ $C$ ซ้ำๆ จนกว่า $J(K,C)$
+          ตามสมการ~\eqref{eq:param_est_cost} จะมีค่าต่ำที่สุด
+          กระบวนการนี้เทียบเท่าการค้นหาจุด Minimum ของ Error Surface
+          ในปริภูมิ 2 มิติ ($K$--$C$)
+ 
+    \item \textbf{เหตุผลที่ EOM ใช้ Equilibrium เป็น $x = 0$:}
+          ตามสมการ~\eqref{eq:equilibrium_cancel} เมื่อใช้ตำแหน่งสัมบูรณ์
+          EOM จะมีเทอม $mg$ ที่ไม่ Cancel ออกไป
+          แต่เมื่อใช้การกระจัดจาก Equilibrium เทอม $mg$
+          Balance กับ Spring Pre-load พอดี ทำให้ $u = 0$
+          ใน Free Vibration อย่างไรก็ตาม เนื่องจาก Simulink Model
+          ต้อง Fit กับ Absolute Distance จาก Sensor
+          จึงต้องบวก Offset $x_\text{eq} = 11.3$~cm
+          ที่ Output ของ Model
+ 
+    \item \textbf{แหล่งที่มาของความคลาดเคลื่อนของ Model:}
+          \begin{itemize}
+              \item Friction ระหว่างฐานมวลและเสาไกด์ไม่คงที่
+                    (velocity-dependent และ position-dependent)
+                    ทำให้ Linear Damping Model มีความคลาดเคลื่อน
+                    โดยเฉพาะใน Trial 8 ที่มีค่า $C$ สูงผิดปกติ
+              \item ความไม่เชิงเส้นของสปริงที่ Displacement ใหญ่
+              \item Noise ของ HC-SR04 ใน Training Data
+                    ส่งผลต่อ Cost Function ของ Estimator
+          \end{itemize}
+ 
+    \item \textbf{ผลกระทบต่อ 2-State KF ในการทดลองที่ 5:}
+          ค่า $K$ และ $C$ ที่ได้มีผลโดยตรงต่อ Discrete State Matrix $A_d$
+          \[
+              A_d = \begin{bmatrix} 1 & T_s \\ -\frac{K}{m}T_s & 1-\frac{C}{m}T_s \end{bmatrix}
+          \]
+          หากค่าเหล่านี้มีความคลาดเคลื่อน Prediction Step ของ KF
+          จะ Propagate ความคลาดเคลื่อนสะสม ทำให้ต้องเพิ่ม $Q$
+          เพื่อชดเชย Model Uncertainty
+\end{itemize}

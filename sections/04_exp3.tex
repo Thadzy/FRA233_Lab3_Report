@@ -1,0 +1,533 @@
+% !TeX root = ../main.tex
+
+\section{การทดลองที่ 3: ผลกระทบของ $Q$ และอัตราส่วน $Q/R$
+         ต่อพฤติกรรมของ Scalar KF}
+\textit{ครอบคลุม Criteria: Part 2 --- ออกแบบการทดลองแสดงผลของการปรับ $Q$,
+อธิบาย $Q/R$ Trade-off, เลือก Visualization ที่เหมาะสม (รวม 2.5 คะแนน)}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{บทนำ}
+
+จากการทดลองที่ 2 ได้ Scalar Kalman Filter ที่ทำงานได้แล้ว พร้อมค่า
+Measurement Noise Covariance $R = 0.0337\ \text{cm}^2$ ที่คำนวณได้จาก Variance
+ของ Raw Data จริง อย่างไรก็ตาม การเลือกค่า $Q$ เป็นหนึ่งในการตัดสินใจทางวิศวกรรม
+ที่สำคัญที่สุดในการออกแบบ Kalman Filter เนื่องจาก $Q$ ควบคุมสมดุลระหว่างสองเป้าหมาย
+ที่ขัดแย้งกัน ได้แก่ \textbf{Smoothness} (ความเรียบของสัญญาณออก)
+และ \textbf{Responsiveness} (ความไวในการติดตามการเปลี่ยนแปลง)
+
+กลไกหลักที่ $Q$ ส่งผลผ่านคือสมการ Covariance Prediction:
+\begin{equation}
+    P_k^{(-)} = P_{k-1} + Q
+    \label{eq:cov_predict_exp3}
+\end{equation}
+ทุกรอบที่ระบบทำงาน $Q$ จะ``ฉีด''ความไม่แน่นอนเข้าไปใน $P_k^{(-)}$
+ทำให้ Kalman Gain $K_k$ มีค่าสูงขึ้น และ Filter หันมาเชื่อถือ Measurement มากขึ้น
+ในทางกลับกัน $Q$ ที่ต่ำมากจะทำให้ $P_k^{(-)}$ ลู่เข้าศูนย์
+ส่งผลให้ Filter หยุดรับข้อมูลใหม่จาก Sensor
+
+การเลือกทดสอบ $Q \in \{1\times10^{-3},\ 1\times10^{-5},\ 1\times10^{-6}\}$
+ตามแนวทางของ Al~Tahtawi (2018) เนื่องจากช่วงนี้ครอบคลุมอัตราส่วน $Q/R$
+ตั้งแต่ระดับที่ Filter เชื่อ Measurement มากกว่า Model ($Q \gg R$)
+ไปจนถึงระดับที่ Filter เชื่อ Model มากกว่า Measurement ($Q \ll R$)
+ทำให้สามารถสังเกตพฤติกรรมสุดโต่งทั้งสองด้านได้ในการทดลองเดียวกัน
+โดยใช้ $Q = 1\times10^{-5}$ เป็น Nominal Value เนื่องจากมีขนาดใกล้เคียงกับ
+Variance ของ Raw Data ที่ระยะใกล้ ($s^2 = 0.0050\ \text{cm}^2$ ที่ระยะ 10 cm)
+ซึ่งสะท้อนระดับความไม่แน่นอนของ Model ที่สมเหตุสมผลสำหรับ Sensor นี้
+
+งานวิจัย Al~Tahtawi (2018) ได้ทดสอบค่า $Q$ สามระดับดังกล่าวบน HC-SR04
+และพบว่า Output Noise Variance มีความสัมพันธ์แบบ Exponential กับขนาดของ $Q$
+การทดลองนี้จึงทำซ้ำการทดสอบดังกล่าวบนแพลตฟอร์ม STM32 Nucleo G474RE
+เพื่อยืนยันผลและเลือกค่า $Q$ ที่เหมาะสมที่สุดสำหรับการนำไปใช้จริง
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{วัตถุประสงค์}
+
+\begin{itemize}
+    \item เพื่อศึกษาว่าการเปลี่ยนแปลงค่า $Q$ ส่งผลต่อพฤติกรรมของ KF อย่างไร
+          ทั้งในสถานะคงที่ (Steady State) และเมื่อมี Step Change
+    \item เพื่อทำความเข้าใจ Trade-off ระหว่าง Smoothness และ Responsiveness
+          ที่ถูกควบคุมโดยอัตราส่วน $Q/R$
+    \item เพื่อวัดผล Quantitative ของ Smoothness (Output Variance)
+          และ Responsiveness (Response Time) สำหรับแต่ละ $Q$
+    \item เพื่อเลือกและ Justify ค่า $Q$ ที่เหมาะสมที่สุดสำหรับ
+          ระบบ HC-SR04 บน STM32 Nucleo G474RE
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{สมมติฐาน}
+
+\begin{itemize}
+    \item $Q$ ที่มากขึ้นจะทำให้ Filter ตอบสนองเร็วขึ้น
+          (ติดตาม Step Change ได้ไวขึ้น) แต่สัญญาณออกจะมี Noise มากขึ้น
+    \item $Q$ ที่น้อยลงจะให้สัญญาณออกเรียบขึ้น
+          แต่เกิด Lag Error เมื่อระยะทางจริงเปลี่ยนอย่างกะทันหัน
+    \item Output Noise Variance จะมีความสัมพันธ์เป็นเชิงบวกกับขนาดของ $Q$
+          ตามที่ Al Tahtawi (2018) รายงานไว้
+    \item มีช่วงค่า $Q$ ที่ให้ผลสมดุลระหว่าง Smoothness และ Responsiveness
+          สำหรับ Sensor และ Application นี้โดยเฉพาะ
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{ตัวแปร}
+
+\begin{itemize}
+    \item \textbf{ตัวแปรอิสระ:} ค่า $Q$ ที่ทดสอบ 3 ระดับ
+          ตาม Al Tahtawi (2018) ได้แก่
+          $Q = 1\times10^{-3}$, $Q = 1\times10^{-5}$, และ $Q = 1\times10^{-6}$
+    \item \textbf{ตัวแปรตาม:} Variance ของ KF Output (วัด Smoothness),
+          Response Time หลัง Step Change (วัด Responsiveness),
+          Steady-State Kalman Gain $K_{k,\mathrm{ss}}$
+    \item \textbf{ตัวแปรควบคุม:} ค่า $R = 0.0337$~cm$^2$ คงที่
+          (จากการทดลองที่ 2), Sampling Time $T_s = 60$~ms คงที่,
+          Scenario การทดสอบเหมือนกันทุกค่า $Q$
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{เอกสารและงานวิจัยที่เกี่ยวข้อง}
+
+\subsubsection{ความหมายทางกายภาพของ Process Noise Covariance $Q$}
+
+$Q$ คือพารามิเตอร์ที่สะท้อน \textbf{ความไม่เชื่อมั่นใน Dynamic Model} ของระบบ
+หากระบบจริงมีพฤติกรรมที่ Model ไม่ได้จำลอง (เช่น การเคลื่อนที่ของเป้าหมายในระบบ Static
+หรือแรงรบกวนที่ Model ไม่ครอบคลุม) $Q$ ควรมีค่าสูงขึ้นเพื่อให้ Filter
+มีความยืดหยุ่นพอที่จะปรับตัวตามสถานการณ์จริง ในทางตรงข้าม
+หากระบบจริงสอดคล้องกับ Model อย่างแม่นยำ $Q$ ควรมีค่าต่ำ
+
+แนวคิดนี้แตกต่างจาก $R$ ซึ่งสะท้อนความไม่เชื่อมั่นใน \textbf{Sensor}
+ความสัมพันธ์ระหว่าง $Q$ และ $R$ จึงกำหนดว่า Filter จะ ``เชื่อ Model''
+หรือ ``เชื่อ Sensor'' มากกว่ากัน ซึ่งควบคุมโดยอัตราส่วน $Q/R$
+
+\subsubsection{กลไกผ่านสมการ Covariance Prediction}
+
+จากสมการ Covariance Prediction ของ Scalar KF
+\begin{equation}
+    P_k^{(-)} = P_{k-1} + Q
+    \label{eq:cov_pred_detail}
+\end{equation}
+
+$Q$ บวกเข้าไปใน $P_k^{(-)}$ ทุกรอบ ทำให้ $P_k^{(-)}$ ไม่สามารถลู่เข้าศูนย์ได้
+ผลที่ได้คือ Kalman Gain
+\begin{equation}
+    K_k = \frac{P_k^{(-)}}{P_k^{(-)} + R}
+    \label{eq:scalar_gain_exp3}
+\end{equation}
+จะ Converge ไปสู่ค่า Steady-State $K_{k,\mathrm{ss}}$ ที่ไม่เป็นศูนย์
+ค่า $K_{k,\mathrm{ss}}$ หาได้จากการแก้สมการกำลังสองของ $P_\mathrm{ss}$
+\begin{equation}
+    P_\mathrm{ss}^2 + Q \cdot P_\mathrm{ss} - Q \cdot R = 0
+    \label{eq:p_ss_quadratic}
+\end{equation}
+ซึ่งมีรากบวกเป็น
+\begin{equation}
+    P_\mathrm{ss} = \frac{-Q + \sqrt{Q^2 + 4QR}}{2}
+    \label{eq:p_ss_solution}
+\end{equation}
+
+ที่ค่า $R = 0.0337$~cm$^2$ ที่ได้จากการทดลองที่ 2
+$K_{k,\mathrm{ss}}$ ของ $Q$ ทั้งสามค่ามีดังต่อไปนี้
+
+\begin{table}[htbp]
+    \centering
+    \caption{ค่า Steady-State Kalman Gain สำหรับแต่ละ $Q$
+             (คำนวณจากสมการ~\eqref{eq:p_ss_solution}, $R = 0.0337$~cm$^2$)}
+    \label{tab:kss_theory}
+    \begin{tabular}{cccc}
+        \hline
+        \textbf{ค่า $Q$} & \textbf{$Q/R$} & \textbf{$P_\mathrm{ss}$ (cm$^2$)} & \textbf{$K_{k,\mathrm{ss}}$} \\
+        \hline
+        $1\times10^{-3}$ & $2.97\times10^{-2}$ & $0.00533$ & $0.136$ \\
+        $1\times10^{-5}$ & $2.97\times10^{-4}$ & $0.00058$ & $0.017$ \\
+        $1\times10^{-6}$ & $2.97\times10^{-5}$ & $0.00018$ & $0.005$ \\
+        \hline
+    \end{tabular}
+\end{table}
+
+จากตารางที่~\ref{tab:kss_theory} จะเห็นได้ว่าทั้งสาม $Q$ มีอัตราส่วน $Q/R \ll 1$
+เนื่องจาก $R = 0.0337$~cm$^2$ มีขนาดใหญ่กว่า $Q$ ทุกค่ามาก
+การจัดอันดับของ $K_{k,\mathrm{ss}}$ และพฤติกรรมที่แตกต่างกันจึงมาจาก
+\textbf{ขนาดสัมพัทธ์ระหว่าง $Q$ ด้วยกันเอง} ไม่ใช่จากความสัมพันธ์
+$Q$ vs.\ $R$ โดยตรง
+
+\subsubsection{Trade-off ระหว่าง Smoothness และ Responsiveness}
+
+\begin{table}[htbp]
+    \centering
+    \caption{สรุป Trade-off ของแต่ละระดับ $Q$}
+    \label{tab:qr_tradeoff}
+    \begin{tabular}{ccccc}
+        \hline
+        \textbf{ค่า $Q$} & \textbf{$Q/R$} & \textbf{$K_{k,\mathrm{ss}}$} & \textbf{Smoothness} & \textbf{Response Time} \\
+        \hline
+        $1\times10^{-3}$ & $2.97\times10^{-2}$ & สูง ($\approx 0.136$) & ต่ำ & เร็ว \\
+        $1\times10^{-5}$ & $2.97\times10^{-4}$ & กลาง ($\approx 0.017$) & กลาง & กลาง \\
+        $1\times10^{-6}$ & $2.97\times10^{-5}$ & ต่ำ ($\approx 0.005$) & สูง & ช้า \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\subsubsection{สภาวะ Overconfident Filter ($Q \to 0$)}
+
+หาก $Q = 0$ สมการ Covariance Prediction กลายเป็น $P_k^{(-)} = P_{k-1}$
+ซึ่งทำให้ $P_k$ ลู่เข้าศูนย์เมื่อมีการวัดซ้ำๆ ส่งผลให้ $K_k \rightarrow 0$
+Filter จะหยุดรับข้อมูลใหม่จาก Sensor ทั้งหมด และยึดติดกับ Prediction ของ Model
+เพียงอย่างเดียว สภาวะนี้เรียกว่า \textbf{Overconfident Filter}
+ซึ่งเป็นอันตรายในระบบ Dynamic ที่สถานะจริงเปลี่ยนแปลงอยู่ตลอดเวลา
+
+\subsubsection{งานวิจัย Al Tahtawi (2018) ที่เกี่ยวข้องโดยตรง}
+
+Al Tahtawi (2018) ทดสอบ $Q$ สามระดับ ได้แก่ $Q = 1\times10^{-3}$,
+$1\times10^{-5}$, $1\times10^{-6}$ บน ATMega328p โดยกำหนด $R = 2.92\times10^{-3}$
+ผลสำคัญจาก Figure 6--10 มีดังนี้
+
+\begin{itemize}
+    \item \textbf{Figure 6 (Steady State):} $Q = 1\times10^{-6}$ ให้ Output
+          เรียบที่สุดที่สถานะคงตัว ขณะที่ $Q = 1\times10^{-3}$ ให้ Output
+          ใกล้เคียง Raw Data
+    \item \textbf{Figure 8--9 (Step Change):} $Q = 1\times10^{-3}$ ติดตาม
+          Step Change ได้เร็วที่สุด ขณะที่ $Q = 1\times10^{-6}$
+          มี Response Time ช้าที่สุด
+    \item \textbf{Figure 10 (Variance Analysis):} Output Noise Variance
+          มีความสัมพันธ์เป็นเชิงบวกกับขนาดของ $Q$ โดย
+          $Q = 1\times10^{-3}$ ให้ Variance สูงสุดและ $Q = 1\times10^{-6}$
+          ให้ Variance ต่ำสุด
+\end{itemize}
+
+ข้อแตกต่างจากการทดลองนี้คือ Al Tahtawi (2018) ใช้ $R = 2.92\times10^{-3}$
+ซึ่งเล็กกว่า $Q = 1\times10^{-3}$ ทำให้ $Q/R > 1$ ในกรณีนั้น
+แต่ในการทดลองของเราใช้ $R = 0.0337$~cm$^2$ ซึ่งใหญ่กว่า $Q$ ทุกค่า
+ดังนั้น $Q/R < 1$ ในทุกกรณี อย่างไรก็ตาม \textbf{ทิศทางของ Effect ยังเหมือนกัน}
+คือ $Q$ ที่ใหญ่กว่าทำให้ Filter ตอบสนองเร็วกว่าเสมอ
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{ขั้นตอนการทดลอง}
+
+การทดลองนี้ดำเนินการใน 2 Scenario หลัก โดยใช้ KF Library จากการทดลองที่ 2
+เปลี่ยนเฉพาะค่า $Q_0$ ระหว่าง Run โดยคง $R = 0.0337$~cm$^2$ และ $T_s = 60$~ms
+ตามเดิม
+
+\textbf{Scenario A: ระยะคงที่ (Steady-State Analysis)}
+
+\begin{enumerate}
+    \item วางวัตถุแบนที่ระยะ 10~cm จาก Sensor ตั้งฉากกับเซนเซอร์
+    \item รัน KF ด้วย $Q$ ทั้ง 3 ค่า แยก Run กัน บันทึก 10 วินาทีต่อ Run
+    \item Log ค่า Raw $z_k$, KF Output $\hat{x}_k$, Kalman Gain $K_k$,
+          และ Error Covariance $P_k$ ทุก Timestamp
+    \item คำนวณ Output Variance ของแต่ละ Run ด้วยสมการ Sample Variance
+          ตามที่นิยามในการทดลองที่~2 โดยใช้สูตร
+          $s^2 = \sum_{i=1}^{N}(z_i - \bar{z})^2 / (N-1)$
+\end{enumerate}
+
+\textbf{Scenario B: MSD Free Vibration (Responsiveness Analysis)}
+ 
+การทดลอง Scenario B ใช้ชุด Mass-Spring-Damper จริงที่ติดตั้ง HC-SR04
+ไว้ด้านล่างชี้ขึ้นเพื่อวัดระยะของมวลในแนวดิ่ง โดยมีขั้นตอนดังนี้
+ 
+\begin{enumerate}
+    \item ปล่อยให้มวลอยู่ที่ตำแหน่ง Equilibrium ($x = 0$)
+          ซึ่งกำหนดเป็นตำแหน่งที่ แรงสปริง $Kx$ พอดีสมดุลกับน้ำหนักมวล $mg$
+          ยืนยันว่า Sensor อ่านค่า Baseline คงที่ก่อนเริ่มทดลอง
+    \item ดึงมวลออกจาก Sensor ในแนวดิ่ง (ดึงขึ้น) เป็นระยะ
+          $x_0 = +7.2$~cm จากจุด Equilibrium
+          แล้วปล่อยโดยไม่ออกแรง ($\dot{x}(0) = 0$)
+          ทำให้ระบบเกิด Free Vibration
+    \item บันทึกข้อมูลตั้งแต่ช่วงที่ปล่อยมวลจนกระทั่ง Oscillation
+          สงบลง (อย่างน้อย 10~วินาที) ส่งข้อมูลผ่าน Serial 115200~baud
+          ในรูปแบบ \texttt{t\_ms, raw, filt\_Q1e-3, filt\_Q1e-5, filt\_Q1e-6}
+          โดย KF ทั้ง 3 ค่า $Q$ รันพร้อมกันในลูปเดียว
+    \item ทำซ้ำ 3 Trials โดยให้มวลกลับสู่ Equilibrium ก่อนเริ่ม Trial ถัดไป
+\end{enumerate}
+ 
+\textbf{การคำนวณ Settling Time สำหรับ Free Vibration}
+ 
+เนื่องจาก Scenario B เป็น Free Vibration ไม่ใช่ Step Change
+จึงไม่สามารถใช้นิยาม Response Time แบบเดิม (เข้าใกล้ Setpoint ใหม่ภายใน 5\%)
+ได้โดยตรง การทดลองนี้จึงนิยาม \textbf{Settling Time} ดังนี้
+ 
+\begin{itemize}
+    \item คำนวณ \textbf{Initial Amplitude} $A_0$ จากค่า Maximum Deviation
+          ของ KF Output จาก Equilibrium ในช่วง 30\% แรกของการบันทึก
+          \begin{equation}
+              A_0 = \max_{k \,\in\, [1,\, 0.3N]} \left|\hat{x}_k - \bar{x}_{\mathrm{eq}}\right|
+              \label{eq:init_amp}
+          \end{equation}
+          โดยที่ $\bar{x}_{\mathrm{eq}}$ คือค่าเฉลี่ย KF Output ใน 20\% สุดท้าย
+          ซึ่งระบบน่าจะนิ่งแล้ว
+    \item กำหนด \textbf{Settling Threshold} เป็น 5\% ของ $A_0$
+          \begin{equation}
+              \delta = 0.05 \times A_0
+              \label{eq:settle_threshold}
+          \end{equation}
+    \item \textbf{Settling Time} $t_s$ คือเวลาที่ KF Output เข้าสู่แถบ
+          $[\bar{x}_{\mathrm{eq}} - \delta,\; \bar{x}_{\mathrm{eq}} + \delta]$
+          และอยู่ในแถบนั้นตลอดจนสิ้นสุดการบันทึก
+          \begin{equation}
+              t_s = t_{k^*} - t_1
+              \quad \text{โดยที่} \quad
+              k^* = \min\left\{k : \left|\hat{x}_j - \bar{x}_{\mathrm{eq}}\right| \leq \delta
+              \;\;\forall j \geq k \right\}
+              \label{eq:settling_time}
+          \end{equation}
+    \item $Q$ ที่มี $t_s$ \textbf{น้อยกว่า} หมายความว่า Filter ปรับตัวตาม
+          พลศาสตร์ของระบบได้เร็วกว่า จึงวัด Responsiveness ได้ในบริบท Dynamic
+\end{itemize}
+ 
+\begin{enumerate}
+    \setcounter{enumi}{4}
+    \item วิเคราะห์ผลโดยคำนวณ Settling Time ของ KF Output
+          แต่ละค่า $Q$ ตามนิยามในสมการ~\eqref{eq:settling_time}
+          ด้วย MATLAB โดยใช้ Envelope Method ข้างต้น
+    \item Plot Raw $z_k$ และ KF Output $\hat{x}_k$ ของ $Q$ ทั้ง 3 ค่า
+          บนกราฟเดียวกัน เพื่อเปรียบเทียบ Smoothness และ Tracking
+          ในสภาวะ Dynamic
+\end{enumerate}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+%% ส่วนที่เพิ่ม/แทนที่ใน sections/04_exp3.tex
+%% เฉพาะส่วน ผลการทดลอง, สรุป, อภิปราย
+%% (ส่วน บทนำ, วัตถุประสงค์, สมมติฐาน, ตัวแปร, เอกสาร, ขั้นตอน มีอยู่แล้ว)
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{ผลการทดลอง}
+
+\subsubsection{Scenario A: ระยะคงที่ --- Variance Reduction}
+
+ผลการคำนวณ Output Variance ของ KF แต่ละค่า $Q$ เปรียบเทียบกับ Raw Data
+จากการทดลอง 3 Trials แสดงในตารางที่~\ref{tab:exp3_scA_variance}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Variance ของ Raw Data และ KF Output ที่ระยะคงที่ 10~cm
+             (Scenario A, 3 Trials, 152 Samples ต่อ Run)}
+    \label{tab:exp3_scA_variance}
+    \begin{tabular}{clccr}
+        \hline
+        \textbf{Trial}
+            & \textbf{ค่า $Q$}
+            & \textbf{Var Raw (cm$^2$)}
+            & \textbf{Var KF (cm$^2$)}
+            & \textbf{Noise ลดลง (\%)} \\
+        \hline
+        \multirow{3}{*}{1}
+            & $1\times10^{-3}$ & 0.1712 & 0.0290 & 83.0 \\
+            & $1\times10^{-5}$ & 0.1732 & 0.0287 & 83.4 \\
+            & $1\times10^{-6}$ & 0.2266 & 0.0430 & 81.0 \\
+        \hline
+        \multirow{3}{*}{2}
+            & $1\times10^{-3}$ & 0.1487 & 0.0374 & 74.8 \\
+            & $1\times10^{-5}$ & 0.2158 & 0.0287 & 86.7 \\
+            & $1\times10^{-6}$ & 0.2100 & 0.0196 & 90.7 \\
+        \hline
+        \multirow{3}{*}{3}
+            & $1\times10^{-3}$ & 0.0765 & 0.0217 & 71.7 \\
+            & $1\times10^{-5}$ & 0.0001 & 0.0000 & 82.6 \\
+            & $1\times10^{-6}$ & 0.0119 & 0.0001 & 98.9 \\
+        \hline
+        \multirow{3}{*}{\textbf{Mean}}
+            & $1\times10^{-3}$ & 0.1321 & 0.0294 & \textbf{76.5} \\
+            & $1\times10^{-5}$ & 0.1297 & 0.0191 & \textbf{84.2} \\
+            & $1\times10^{-6}$ & 0.1495 & 0.0209 & \textbf{90.2} \\
+        \hline
+    \end{tabular}
+\end{table}
+ 
+\noindent\textit{หมายเหตุ:} Trial 3 ที่ $Q = 1\times10^{-5}$
+มีค่า Raw Variance ต่ำผิดปกติ ($4.9\times10^{-5}$~cm$^2$)
+เนื่องจาก Sensor อ่านค่าได้นิ่งมากในช่วงนั้น โดยสัญญาณแกว่งอยู่ในช่วง
+เพียง $\pm 0.015$~cm ซึ่งอยู่ในระดับ Quantization ของ HC-SR04
+จึงรายงานเป็น 0.0001~cm$^2$ ตามค่าจริงที่คำนวณได้ โดยไม่ได้ตัดทิ้ง
+
+\begin{figure}[htbp]
+    \centering
+    % TODO: แทนด้วยกราฟจริงจาก MATLAB
+    \includegraphics[width=0.85\textwidth]{/Users/thadzy/Documents/01_Active/University/FRA233-Control/Lab3/FRA233_Lab3_Report/images/Scenario A - Average Across All Trials.png}
+    \caption{Time-Domain Plot (Scenario A): Raw Data $z_k$ และ KF Output $\hat{x}_k$
+             สำหรับ $Q \in \{1\times10^{-3},\, 1\times10^{-5},\, 1\times10^{-6}\}$
+             บนกราฟเดียวกัน ที่ระยะคงที่ 10~cm
+             (แกน $x$: เวลา (s), แกน $y$: ระยะทาง (cm))}
+    \label{fig:exp3_scenarioA}
+\end{figure}
+
+\subsubsection{Scenario B: MSD Free Vibration --- Settling Time และ Variance}
+
+Scenario B ทดสอบพฤติกรรมของ KF ในสภาวะ Dynamic โดยดึงมวลขึ้นจาก
+ตำแหน่ง Equilibrium เป็นระยะ $x_0 \approx 7.2$~cm แล้วปล่อย (Free Vibration)
+Settling Time นิยามเป็นเวลาที่ KF Output มี Amplitude ของการแกว่ง
+ลดลงต่ำกว่า 5\% ของ Initial Amplitude และอยู่ในนั้นตลอดจนสิ้นสุดการบันทึก
+
+\begin{table}[htbp]
+    \centering
+    \caption{ผลการวัด Settling Time และ Variance Reduction ของ KF
+             ในสภาวะ MSD Free Vibration (Scenario B, 3 Trials)}
+    \label{tab:exp3_scB_results}
+    \begin{tabular}{clcccc}
+        \hline
+        \textbf{Trial}
+            & \textbf{ค่า $Q$}
+            & \textbf{Init.\ Amp.\ (cm)}
+            & \textbf{Settle (ms)}
+            & \textbf{Var KF (cm$^2$)}
+            & \textbf{Noise ลดลง (\%)} \\
+        \hline
+        \multirow{3}{*}{1}
+            & $1\times10^{-3}$ & 4.77 & 3232 & 1.2792 & 42.4 \\
+            & $1\times10^{-5}$ & 4.59 & 3892 & 0.7948 & 64.2 \\
+            & $1\times10^{-6}$ & 4.62 & 3892 & 0.7897 & 64.4 \\
+        \hline
+        \multirow{3}{*}{2}
+            & $1\times10^{-3}$ & 4.95 & 3695 & 1.3223 & 40.3 \\
+            & $1\times10^{-5}$ & 4.96 & 4223 & 0.7542 & 65.9 \\
+            & $1\times10^{-6}$ & 5.07 & 4685 & 0.7717 & 65.1 \\
+        \hline
+        \multirow{3}{*}{3}
+            & $1\times10^{-3}$ & 4.56 & 3894 & 1.3116 & 42.8 \\
+            & $1\times10^{-5}$ & 4.32 & 5214 & 0.7182 & 68.7 \\
+            & $1\times10^{-6}$ & 4.36 & 5280 & 0.7114 & 69.0 \\
+        \hline
+        \multirow{3}{*}{\textbf{Mean}}
+            & $1\times10^{-3}$ & 4.76 & \textbf{3607} & 1.3044 & \textbf{41.8} \\
+            & $1\times10^{-5}$ & 4.62 & \textbf{4443} & 0.7557 & \textbf{66.3} \\
+            & $1\times10^{-6}$ & 4.68 & \textbf{4619} & 0.7576 & \textbf{66.2} \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    % TODO: แทนด้วยกราฟจริงจาก MATLAB (plot ทั้ง 3 Q บนกราฟเดียวกัน)
+    \includegraphics[width=0.85\textwidth]{/Users/thadzy/Documents/01_Active/University/FRA233-Control/Lab3/FRA233_Lab3_Report/images/Scenario B - Average Across All Trials.png}
+    \caption{Time-Domain Plot (Scenario B): Raw Data $z_k$ และ KF Output $\hat{x}_k$
+             สำหรับ $Q$ ทั้ง 3 ค่า บนกราฟเดียวกัน
+             ระบบ MSD Free Vibration เริ่มต้นที่ $x_0 \approx 7.2$~cm
+             จาก Equilibrium
+             (แกน $x$: เวลา (s), แกน $y$: ระยะทาง (cm))}
+    \label{fig:exp3_scenarioB}
+\end{figure}
+
+\subsubsection{สรุปผล Quantitative}
+
+\begin{table}[htbp]
+    \centering
+    \caption{สรุปค่า Quantitative เปรียบเทียบทั้ง 2 Scenario
+             ($R = 0.0337$~cm$^2$, ค่าเฉลี่ยจาก 3 Trials)}
+    \label{tab:exp3_summary}
+    \begin{tabular}{lcccc}
+        \hline
+        \textbf{ค่า $Q$}
+            & \textbf{$Q/R$}
+            & \textbf{$K_{k,\mathrm{ss}}$}
+            & \textbf{Settle Time (ms)}
+            & \textbf{Var Reduction (\%)} \\
+        \hline
+        $1\times10^{-3}$ & $2.97\times10^{-2}$ & 0.136 & \textbf{3607} & 41.8 \\
+        $1\times10^{-5}$ & $2.97\times10^{-4}$ & 0.017 & 4443          & \textbf{66.3} \\
+        $1\times10^{-6}$ & $2.97\times10^{-5}$ & 0.005 & 4619          & 66.2 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\paragraph{หมายเหตุเกี่ยวกับหน่วย}
+กราฟในรูปที่~6 และ~7 แสดงหน่วยแกน $y$ เป็น cm เพื่อความสะดวก
+ในการอ่านค่าและเปรียบเทียบ ค่าดังกล่าวสามารถแปลงเป็นหน่วย SI (m)
+ได้โดยคูณด้วยตัวประกอบ $1 \times 10^{-2}$
+
+\subsubsection{Error Plot — ส่วนต่างระหว่าง KF Output กับ Raw Data}
+
+รูปที่~8 แสดง Residual $e_k = z_k - \hat{x}_k$ สำหรับแต่ละค่า $Q$
+ใน Scenario A (ระยะคงที่) ซึ่งสะท้อนให้เห็นว่า $Q$ ที่ต่ำกว่า
+ทำให้ Filter กรอง Noise ได้มากกว่า (Residual มีขนาดเล็กกว่า)
+แต่แลกกับการที่ Filter ตอบสนองต่อการเปลี่ยนแปลงช้าลง
+
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{figures/Figure_ErrorPlot.pdf}
+    \caption{รูปที่ 8: Error Plot แสดง Residual $e_k = z_k - \hat{x}_k$
+    สำหรับ $Q \in \{1\times10^{-3},\ 1\times10^{-5},\ 1\times10^{-6}\}$
+    ที่ระยะคงที่ 10~cm
+    (แกน $x$: เวลา (s), แกน $y$: Residual ($\times 10^{-2}$~m))}
+    \label{fig:error_plot}
+\end{figure}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{สรุปผลการทดลอง}
+
+\begin{itemize}
+    \item \textbf{Scenario A (Static):} KF ทุกค่า $Q$ สามารถลด Noise ได้อย่าง
+          มีนัยสำคัญ (71--99\%) โดย $Q = 1\times10^{-6}$ ให้ Variance Reduction
+          สูงที่สุดเฉลี่ย 90.2\% ขณะที่ $Q = 1\times10^{-3}$ ให้ 76.5\%
+          สอดคล้องกับทฤษฎีที่ $K_{k,\mathrm{ss}}$ ต่ำกว่าจะกรอง Noise ได้มากกว่า
+          แต่แลกกับการตอบสนองที่ช้าลง
+
+    \item \textbf{Scenario B (Dynamic):} $Q = 1\times10^{-3}$ มี Settling Time
+          เร็วที่สุดเฉลี่ย 3607~ms เนื่องจาก $K_{k,\mathrm{ss}} = 0.136$
+          ทำให้ Filter ติดตาม Measurement ได้ไว แต่ Variance Reduction
+          ต่ำที่สุดที่ 41.8\% ขณะที่ $Q = 1\times10^{-5}$ และ $Q = 1\times10^{-6}$
+          ให้ Variance Reduction ใกล้เคียงกัน ($\approx 66\%$) แต่ $Q = 1\times10^{-5}$
+          settle เร็วกว่า $Q = 1\times10^{-6}$ อย่างชัดเจน (4443 vs.\ 4619~ms)
+
+    \item \textbf{ค่า $Q$ ที่แนะนำ:} $Q = 1\times10^{-5}$ ให้ผลสมดุลดีที่สุด
+          ระหว่าง Smoothness (Var Reduction 66.3\%) และ Responsiveness
+          (Settle Time 4443~ms) โดยไม่เสียสละ Noise Rejection มากเกินไป
+          เหมือน $Q = 1\times10^{-3}$ และตอบสนองได้เร็วกว่า $Q = 1\times10^{-6}$
+          อย่างมีนัยสำคัญในสภาวะ Dynamic สอดคล้องกับ Nominal Value
+          ที่ Al Tahtawi (2018) เลือกใช้
+\end{itemize}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\subsection{อภิปรายผล}
+
+\begin{itemize}
+    \item \textbf{กลไกที่ $Q$ ส่งผลต่อ Filter:}
+          $Q$ บวกเข้าไปใน $P_k^{(-)}$ ทุกรอบผ่านสมการ~\eqref{eq:cov_predict_exp3}
+          ทำให้ Kalman Gain $K_k = P_k^{(-)}/(P_k^{(-)} + R)$ สูงขึ้น
+          และ State Update $\hat{x}_k = \hat{x}_k^{(-)} + K_k(z_k - \hat{x}_k^{(-)})$
+          ดึง Output เข้าหา Measurement มากขึ้น
+          ผลคือ Filter ตอบสนองเร็วขึ้นแต่ยอมรับ Noise จาก Sensor มากขึ้น
+          ดังที่เห็นในตารางที่~\ref{tab:exp3_scB_results}
+          ว่า $Q = 1\times10^{-3}$ มี Settle Time สั้นที่สุด
+          แต่ Variance Reduction ต่ำที่สุด
+
+    \item \textbf{$Q = 1\times10^{-5}$ vs.\ $Q = 1\times10^{-6}$:}
+          ผลที่น่าสนใจคือทั้งสองค่านี้ให้ Variance Reduction ใกล้เคียงกันมาก
+          ($66.3\%$ vs.\ $66.2\%$) แต่ Settle Time ต่างกัน 176~ms
+          เหตุผลคือ $K_{k,\mathrm{ss}}$ ต่างกัน 3.4 เท่า (0.017 vs.\ 0.005)
+          ใน Scenario Static ความต่างของ Variance นี้เล็กน้อยเพราะ Signal
+          ไม่เปลี่ยนแปลง แต่ใน Dynamic Scenario ความต่างของ Responsiveness
+          จะเห็นได้ชัดกว่า
+
+    \item \textbf{$Q/R \ll 1$ ในทุกกรณี:}
+          เนื่องจาก $R = 0.0337$~cm$^2$ ใหญ่กว่า $Q$ ทุกค่ามาก
+          Filter จึงโน้มเอียงไปทาง ``เชื่อ Model'' เป็นค่า Default อยู่แล้ว
+          ซึ่งแตกต่างจาก Al Tahtawi (2018) ที่ใช้ $R = 2.92\times10^{-3}$
+          ทำให้ $Q = 1\times10^{-3}$ มี $Q/R > 1$ ในงานวิจัยนั้น
+          แต่ \textbf{ทิศทางของ Effect เหมือนกันทุกประการ}
+          คือ $Q$ ที่ใหญ่กว่าทำให้ Filter ตอบสนองเร็วกว่าเสมอ
+
+    \item เมื่อเปรียบเทียบกับงานวิจัยของ Al~Tahtawi (2018) ซึ่งใช้
+            $R = 2.92\times10^{-3}$~cm$^2$ พบว่าในงานวิจัยนั้น
+            $Q = 1\times10^{-3}$ ทำให้ $Q/R > 1$ กล่าวคือ Filter เชื่อ
+            Measurement มากกว่า Model ในขณะที่การทดลองนี้ใช้
+            $R = 0.0337$~cm$^2$ ซึ่งใหญ่กว่า $Q$ ทุกค่า ทำให้ $Q/R < 1$
+            ตลอด Filter จึงโน้มเอียงไปทาง Model มากกว่า อย่างไรก็ตาม
+            ทิศทางของ Effect เหมือนกันทุกประการ กล่าวคือ $Q$ ที่ใหญ่กว่า
+            ทำให้ Filter ตอบสนองเร็วกว่าเสมอ ไม่ว่า $Q/R$ จะมากกว่าหรือ
+            น้อยกว่า 1 ความแตกต่างนี้เกิดจาก Sensor ที่ใช้ในการทดลองนี้
+            มี Noise สูงกว่า (Variance ต่างกัน 11 เท่า) ดังนั้นการเปรียบเทียบ
+            ค่าสัมบูรณ์ของ $Q$ จึงไม่มีความหมาย แต่ควรเปรียบเทียบจาก
+            อัตราส่วน $Q/R$ แทน
+
+    \item \textbf{สภาวะ Overconfident ($Q \to 0$):}
+          หาก $Q = 0$ ค่า $P_k$ จะ Converge ลงสู่ศูนย์
+          ส่งผลให้ $K_k \rightarrow 0$ ตามสมการ~\eqref{eq:scalar_gain_exp3}
+          Filter จะหยุดรับข้อมูลใหม่จาก Sensor โดยสิ้นเชิง
+          ซึ่งจะทำให้ KF ไม่สามารถติดตามการแกว่งของ MSD ได้เลย
+          แม้แต่ $Q = 1\times10^{-6}$ ที่ใช้ในการทดลองนี้
+          ก็ยังแสดงให้เห็นว่า Settle Time ช้ากว่า $Q = 1\times10^{-5}$
+          อย่างมีนัยสำคัญในสภาวะ Dynamic
+
+    \item \textbf{ข้อสังเกตเกี่ยวกับ Scenario B:}
+          Settling Time ที่วัดได้ในการทดลองนี้สะท้อนทั้งการที่ KF ติดตาม
+          Measurement ได้ไวแค่ไหน \textbf{และ} ระยะเวลาที่ระบบ MSD จริง
+          Damp Out ทางกายภาพ ดังนั้นความต่างของ Settling Time ระหว่าง
+          $Q = 1\times10^{-3}$ (3607~ms) กับ $Q = 1\times10^{-6}$ (4619~ms)
+          บางส่วนมาจาก Filter Lag ที่ต่างกัน ไม่ใช่ทั้งหมดจาก Physical Damping
+\end{itemize}
