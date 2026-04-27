@@ -1,0 +1,147 @@
+\xpg@aux {}{thai}
+\contentsline {section}{\numberline {1}การทดลองที่ 1: วัดค่า Spring Constant ($K$)}{1}{section.1}%
+\contentsline {subsection}{\numberline {1.1}บทนำ}{1}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}วัตถุประสงค์}{1}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}สมมติฐาน}{1}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}ตัวแปร}{1}{subsection.1.4}%
+\contentsline {subsection}{\numberline {1.5}เอกสารและงานวิจัยที่เกี่ยวข้อง}{2}{subsection.1.5}%
+\contentsline {subsubsection}{\numberline {1.5.1}กฎของฮุก (Hooke's Law) และข้อสมมติของวัสดุยืดหยุ่นเชิงเส้น}{2}{subsubsection.1.5.1}%
+\contentsline {paragraph}{ความหมายและความสำคัญของกฎของฮุก}{2}{paragraph*.1}%
+\contentsline {paragraph}{ความสัมพันธ์ระหว่างความเค้นและความเครียด}{2}{paragraph*.2}%
+\contentsline {paragraph}{การประยุกต์ใช้กฎของฮุกกับระบบสปริง}{2}{paragraph*.3}%
+\contentsline {subsubsection}{\numberline {1.5.2}ข้อสมมติของวัสดุยืดหยุ่นเชิงเส้น (Linear Elastic Assumptions)}{3}{subsubsection.1.5.2}%
+\contentsline {subsubsection}{\numberline {1.5.3}วิธีการทางสถิติ (Statistical Methods)}{4}{subsubsection.1.5.3}%
+\contentsline {paragraph}{ค่าเฉลี่ย (Mean)}{4}{paragraph*.4}%
+\contentsline {paragraph}{ส่วนเบี่ยงเบนมาตรฐาน (Standard Deviation)}{4}{paragraph*.5}%
+\contentsline {paragraph}{สัมประสิทธิ์ความแปรปรวน (Coefficient of Variation: CV)}{4}{paragraph*.6}%
+\contentsline {subsubsection}{\numberline {1.5.4}การวิเคราะห์การถดถอยเชิงเส้น (Linear Regression)}{4}{subsubsection.1.5.4}%
+\contentsline {subsection}{\numberline {1.6}ขั้นตอนการทดลอง}{5}{subsection.1.6}%
+\contentsline {subsection}{\numberline {1.7}ผลการทดลอง}{5}{subsection.1.7}%
+\contentsline {subsubsection}{\numberline {1.7.1}ตารางข้อมูลที่บันทึกได้}{5}{subsubsection.1.7.1}%
+\contentsline {subsubsection}{\numberline {1.7.2}การคำนวณค่า $K$ ด้วย Linear Regression}{6}{subsubsection.1.7.2}%
+\contentsline {paragraph}{แนวทางที่ 1: OLS ผ่านจุดกำเนิด}{7}{paragraph*.7}%
+\contentsline {paragraph}{แนวทางที่ 2: Full OLS with Intercept (ค่าที่เลือกใช้)}{7}{paragraph*.8}%
+\contentsline {subsection}{\numberline {1.8}ผลการวิเคราะห์ค่าคงที่สปริง (Spring Constant Analysis)}{7}{subsection.1.8}%
+\contentsline {subsubsection}{\numberline {1.8.1}การวิเคราะห์ด้วยวิธีการถดถอยเชิงเส้น (Linear Regression)}{7}{subsubsection.1.8.1}%
+\contentsline {subsubsection}{\numberline {1.8.2}ค่าทางสถิติและจุดประมาณการ (Point Estimates)}{7}{subsubsection.1.8.2}%
+\contentsline {subsubsection}{\numberline {1.8.3}การคำนวณค่าสัมประสิทธิ์การตัดสินใจ ($R^2$)}{8}{subsubsection.1.8.3}%
+\contentsline {subsection}{\numberline {1.9}สรุปและอภิปรายผล}{8}{subsection.1.9}%
+\contentsline {subsection}{\numberline {1.10}ข้อเสนอแนะเพื่อการพัฒนา}{9}{subsection.1.10}%
+\contentsline {section}{\numberline {2}การทดลองที่ 2: สร้าง Library HC-SR04 และวัด Measurement Noise Covariance}{9}{section.2}%
+\contentsline {subsection}{\numberline {2.1}บทนำ}{9}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}วัตถุประสงค์}{9}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}สมมติฐาน}{10}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}ตัวแปร}{10}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}เอกสารและงานวิจัยที่เกี่ยวข้อง}{10}{subsection.2.5}%
+\contentsline {subsubsection}{\numberline {2.5.1}เซนเซอร์วัดระยะ HC-SR04}{10}{subsubsection.2.5.1}%
+\contentsline {paragraph}{แผนผังขาเชื่อมต่อ (Pin Diagram)}{10}{paragraph*.9}%
+\contentsline {paragraph}{Timing Diagram และลำดับการทำงาน}{10}{paragraph*.10}%
+\contentsline {paragraph}{การคำนวณระยะทางจากพัลส์ Echo}{11}{paragraph*.11}%
+\contentsline {subsubsection}{\numberline {2.5.2}การ Configure STM32 Nucleo G474RE สำหรับ HC-SR04}{11}{subsubsection.2.5.2}%
+\contentsline {subsubsection}{\numberline {2.5.3}การคำนวณ Sample Variance เพื่อหาค่า $R$}{12}{subsubsection.2.5.3}%
+\contentsline {subsubsection}{\numberline {2.5.4}Kalman Filter ใน Continuous Domain}{12}{subsubsection.2.5.4}%
+\contentsline {subsubsection}{\numberline {2.5.5}การ Discretize สมการ Kalman Filter}{13}{subsubsection.2.5.5}%
+\contentsline {subsubsection}{\numberline {2.5.6}สรุปสมการคณิตศาสตร์ของ Discrete Kalman Filter}{14}{subsubsection.2.5.6}%
+\contentsline {subsubsection}{\numberline {2.5.7}การ Implement Scalar Kalman Filter บน STM32}{15}{subsubsection.2.5.7}%
+\contentsline {subsection}{\numberline {2.6}ขั้นตอนการทดลอง}{16}{subsection.2.6}%
+\contentsline {subsection}{\numberline {2.7}การพัฒนา Library HC-SR04}{17}{subsection.2.7}%
+\contentsline {subsubsection}{\numberline {2.7.1}โครงสร้าง Library (\texttt {hcsr04.h} / \texttt {hcsr04.c})}{17}{subsubsection.2.7.1}%
+\contentsline {subsubsection}{\numberline {2.7.2}การทำงานของ \texttt {HCSR04\_Read()}}{17}{subsubsection.2.7.2}%
+\contentsline {subsubsection}{\numberline {2.7.3}Main Loop สำหรับเก็บข้อมูล Raw Data}{18}{subsubsection.2.7.3}%
+\contentsline {subsection}{\numberline {2.8}ผลการทดลอง}{18}{subsection.2.8}%
+\contentsline {subsubsection}{\numberline {2.8.1}ผลการประเมินค่า Measurement Noise Covariance ($R$)}{18}{subsubsection.2.8.1}%
+\contentsline {subsubsection}{\numberline {2.8.2}การเลือกค่า $R$ สำหรับระบบ Mass-Spring-Damper}{20}{subsubsection.2.8.2}%
+\contentsline {subsection}{\numberline {2.9}สรุปผลการทดลอง}{20}{subsection.2.9}%
+\contentsline {subsection}{\numberline {2.10}อภิปรายผล}{20}{subsection.2.10}%
+\contentsline {subsection}{\numberline {2.11}ข้อเสนอแนะเพื่อการพัฒนา}{20}{subsection.2.11}%
+\contentsline {section}{\numberline {3}การทดลองที่ 3: ผลกระทบของ $Q$ และอัตราส่วน $Q/R$ ต่อพฤติกรรมของ Scalar KF}{21}{section.3}%
+\contentsline {subsection}{\numberline {3.1}บทนำ}{21}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}วัตถุประสงค์}{21}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}สมมติฐาน}{22}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}ตัวแปร}{22}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}เอกสารและงานวิจัยที่เกี่ยวข้อง}{22}{subsection.3.5}%
+\contentsline {subsubsection}{\numberline {3.5.1}ความหมายทางกายภาพของ Process Noise Covariance $Q$}{22}{subsubsection.3.5.1}%
+\contentsline {subsubsection}{\numberline {3.5.2}กลไกผ่านสมการ Covariance Prediction}{22}{subsubsection.3.5.2}%
+\contentsline {subsubsection}{\numberline {3.5.3}Trade-off ระหว่าง Smoothness และ Responsiveness}{23}{subsubsection.3.5.3}%
+\contentsline {subsubsection}{\numberline {3.5.4}สภาวะ Overconfident Filter ($Q \to 0$)}{24}{subsubsection.3.5.4}%
+\contentsline {subsubsection}{\numberline {3.5.5}งานวิจัย Al Tahtawi (2018) ที่เกี่ยวข้องโดยตรง}{24}{subsubsection.3.5.5}%
+\contentsline {subsection}{\numberline {3.6}ขั้นตอนการทดลอง}{25}{subsection.3.6}%
+\contentsline {subsection}{\numberline {3.7}ผลการทดลอง}{27}{subsection.3.7}%
+\contentsline {subsubsection}{\numberline {3.7.1}Scenario A: ระยะคงที่ --- Variance Reduction}{27}{subsubsection.3.7.1}%
+\contentsline {subsubsection}{\numberline {3.7.2}Scenario B: MSD Free Vibration --- Settling Time และ Variance}{27}{subsubsection.3.7.2}%
+\contentsline {subsubsection}{\numberline {3.7.3}สรุปผล Quantitative}{27}{subsubsection.3.7.3}%
+\contentsline {paragraph}{หมายเหตุเกี่ยวกับหน่วย}{27}{paragraph*.12}%
+\contentsline {subsection}{\numberline {3.8}สรุปผลการทดลอง}{27}{subsection.3.8}%
+\contentsline {subsection}{\numberline {3.9}อภิปรายผล}{30}{subsection.3.9}%
+\contentsline {subsection}{\numberline {3.10}ข้อเสนอแนะเพื่อการพัฒนา}{31}{subsection.3.10}%
+\contentsline {section}{\numberline {4}การทดลองที่ 4: System Identification ของ Mass-Spring-Damper}{31}{section.4}%
+\contentsline {subsection}{\numberline {4.1}บทนำ}{31}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}วัตถุประสงค์}{32}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}สมมติฐาน}{32}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}ตัวแปร}{32}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}เอกสารและงานวิจัยที่เกี่ยวข้อง}{32}{subsection.4.5}%
+\contentsline {subsubsection}{\numberline {4.5.1}Equation of Motion ของ Mass-Spring-Damper}{32}{subsubsection.4.5.1}%
+\contentsline {subsubsection}{\numberline {4.5.2}เหตุผลที่ใช้ Displacement จาก Equilibrium เป็น State}{33}{subsubsection.4.5.2}%
+\contentsline {subsubsection}{\numberline {4.5.3}Damping Ratio และประเภทของ Response}{34}{subsubsection.4.5.3}%
+\contentsline {subsubsection}{\numberline {4.5.4}MATLAB Parameter Estimator (Simulink Design Optimization)}{35}{subsubsection.4.5.4}%
+\contentsline {subsection}{\numberline {4.6}การปรับปรุง Setup การทดลอง}{36}{subsection.4.6}%
+\contentsline {subsubsection}{\numberline {4.6.1}การวิเคราะห์และคัดกรองข้อมูลผิดปกติ (Outlier Analysis)}{36}{subsubsection.4.6.1}%
+\contentsline {subsection}{\numberline {4.7}ขั้นตอนการทดลอง}{37}{subsection.4.7}%
+\contentsline {subsection}{\numberline {4.8}ผลการทดลอง}{38}{subsection.4.8}%
+\contentsline {subsubsection}{\numberline {4.8.1}Equation of Motion}{38}{subsubsection.4.8.1}%
+\contentsline {subsubsection}{\numberline {4.8.2}Outlier Analysis ของผล Parameter Estimation}{38}{subsubsection.4.8.2}%
+\contentsline {subsubsection}{\numberline {4.8.3}สถิติของพารามิเตอร์ที่ได้}{39}{subsubsection.4.8.3}%
+\contentsline {subsubsection}{\numberline {4.8.4}Simulink Model และ Parameter Estimator}{39}{subsubsection.4.8.4}%
+\contentsline {subsubsection}{\numberline {4.8.5}พารามิเตอร์สุดท้ายที่ได้จากการทดลอง}{40}{subsubsection.4.8.5}%
+\contentsline {subsubsection}{\numberline {4.8.6}การวิเคราะห์ความถูกต้องของแบบจำลอง}{42}{subsubsection.4.8.6}%
+\contentsline {subsection}{\numberline {4.9}สรุปผลการทดลอง}{42}{subsection.4.9}%
+\contentsline {subsection}{\numberline {4.10}อภิปรายผล}{43}{subsection.4.10}%
+\contentsline {subsection}{\numberline {4.11}ข้อเสนอแนะเพื่อการพัฒนา}{43}{subsection.4.11}%
+\contentsline {section}{\numberline {5}การทดลองที่ 5: 2-State KF --- ออกแบบ, Implement, และทดสอบ Free Vibration}{44}{section.5}%
+\contentsline {subsection}{\numberline {5.1}บทนำ}{44}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}วัตถุประสงค์}{44}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}สมมติฐาน}{45}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}ตัวแปร}{45}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}เอกสารและงานวิจัยที่เกี่ยวข้อง}{45}{subsection.5.5}%
+\contentsline {subsubsection}{\numberline {5.5.1}ค่า Spring Constant ที่ใช้ในแต่ละการทดลอง}{45}{subsubsection.5.5.1}%
+\contentsline {subsubsection}{\numberline {5.5.2}State-Space Representation ของ Second-Order System}{45}{subsubsection.5.5.2}%
+\contentsline {subsubsection}{\numberline {5.5.3}Continuous-Domain State-Space Matrices}{46}{subsubsection.5.5.3}%
+\contentsline {subsubsection}{\numberline {5.5.4}เหตุผลที่ $H = [1,\tmspace +\thickmuskip {.2777em} 0]$}{46}{subsubsection.5.5.4}%
+\contentsline {subsubsection}{\numberline {5.5.5}เหตุผลที่ $u = 0$ ใน Free Vibration}{46}{subsubsection.5.5.5}%
+\contentsline {subsubsection}{\numberline {5.5.6}การเลือก Sampling Rate}{47}{subsubsection.5.5.6}%
+\contentsline {subsubsection}{\numberline {5.5.7}Discretization: Euler Forward vs.\ ZOH}{47}{subsubsection.5.5.7}%
+\contentsline {paragraph}{Euler Forward (First-Order Approximation)}{47}{paragraph*.13}%
+\contentsline {paragraph}{Zero-Order Hold (ZOH)}{47}{paragraph*.14}%
+\contentsline {subsubsection}{\numberline {5.5.8}ความหมายทางกายภาพของ Matrix $Q$ และ Scalar $R$}{47}{subsubsection.5.5.8}%
+\contentsline {paragraph}{Measurement Noise Covariance $R$ (Scalar)}{47}{paragraph*.15}%
+\contentsline {paragraph}{Process Noise Matrix $Q$ (2$\times $2)}{48}{paragraph*.16}%
+\contentsline {subsection}{\numberline {5.6}ทฤษฎี: 2-State Discrete Kalman Filter สำหรับ MSD}{48}{subsection.5.6}%
+\contentsline {subsubsection}{\numberline {5.6.1}Continuous State-Space Model}{48}{subsubsection.5.6.1}%
+\contentsline {subsubsection}{\numberline {5.6.2}สมการ 2-State Discrete Kalman Filter ทั้ง 5 สมการ}{48}{subsubsection.5.6.2}%
+\contentsline {paragraph}{ขั้นตอน Prediction (A Priori)}{49}{paragraph*.17}%
+\contentsline {paragraph}{ขั้นตอน Update (A Posteriori)}{49}{paragraph*.20}%
+\contentsline {subsection}{\numberline {5.7}ขั้นตอนการทดลอง}{49}{subsection.5.7}%
+\contentsline {subsubsection}{\numberline {5.7.1}ส่วน A --- Derive และ Discretize Model}{49}{subsubsection.5.7.1}%
+\contentsline {subsubsection}{\numberline {5.7.2}ส่วน B --- การกำหนดค่า $R$ และ Matrix $Q$}{50}{subsubsection.5.7.2}%
+\contentsline {paragraph}{Measurement Noise Covariance $R$}{50}{paragraph*.24}%
+\contentsline {paragraph}{Process Noise Matrix $Q$}{50}{paragraph*.25}%
+\contentsline {subsubsection}{\numberline {5.7.3}ส่วน C --- Implement 2-State KF บน STM32}{50}{subsubsection.5.7.3}%
+\contentsline {subsubsection}{\numberline {5.7.4}ส่วน D --- ทดสอบ Free Vibration}{53}{subsubsection.5.7.4}%
+\contentsline {subsubsection}{\numberline {5.7.5}ส่วน E --- Sensitivity Study}{53}{subsubsection.5.7.5}%
+\contentsline {subsection}{\numberline {5.8}ผลการทดลอง}{54}{subsection.5.8}%
+\contentsline {subsubsection}{\numberline {5.8.1}Continuous State-Space Matrices}{54}{subsubsection.5.8.1}%
+\contentsline {subsubsection}{\numberline {5.8.2}Sampling Rate และ Discrete State-Space Matrices}{54}{subsubsection.5.8.2}%
+\contentsline {subsubsection}{\numberline {5.8.3}Free Vibration ที่ระยะต่างกัน}{57}{subsubsection.5.8.3}%
+\contentsline {subsubsection}{\numberline {5.8.4}Sensitivity Study: ผลกระทบของ $Q$ และ $R$}{57}{subsubsection.5.8.4}%
+\contentsline {subsection}{\numberline {5.9}สรุปผลการทดลอง}{59}{subsection.5.9}%
+\contentsline {subsection}{\numberline {5.10}อภิปรายผล}{59}{subsection.5.10}%
+\contentsline {subsubsection}{\numberline {5.10.1}ความหมายทางกายภาพของ Matrix $Q$ และ Scalar $R$}{59}{subsubsection.5.10.1}%
+\contentsline {subsubsection}{\numberline {5.10.2}เหตุผลที่ใช้ Displacement จาก Equilibrium เป็น State}{60}{subsubsection.5.10.2}%
+\contentsline {subsubsection}{\numberline {5.10.3}การวิเคราะห์ Velocity Estimate}{60}{subsubsection.5.10.3}%
+\contentsline {subsubsection}{\numberline {5.10.4}ผลกระทบของ $Q/R$ Ratio ต่อพฤติกรรม KF}{60}{subsubsection.5.10.4}%
+\contentsline {paragraph}{ผลของการปรับ $Q$}{60}{paragraph*.26}%
+\contentsline {paragraph}{ผลของการปรับ $R$}{61}{paragraph*.27}%
+\contentsline {subsubsection}{\numberline {5.10.5}ข้อจำกัดของระบบและแนวทางพัฒนา}{61}{subsubsection.5.10.5}%
+\contentsline {subsection}{\numberline {5.11}ข้อเสนอแนะเพื่อการพัฒนา}{61}{subsection.5.11}%
+\contentsline {section}{\numberline {6}ภาคผนวก}{62}{section.6}%
+\contentsline {subsection}{\numberline {6.1}สคริปต์ MATLAB สำหรับการวิเคราะห์หาค่าพารามิเตอร์ของระบบ}{62}{subsection.6.1}%

@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026) (preloaded format=xelatex 2026.4.20)  27 APR 2026 17:43
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026) (preloaded format=xelatex 2026.4.20)  27 APR 2026 17:52
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -722,11 +722,74 @@ LaTeX Font Info:    Trying to load font information for U+msb on input line 21.
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 ) [1
 
-]) (./sections/02_exp1.tex
+])
 LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/m/n' will be
-(Font)              scaled to size 17.99557pt on input line 3.
+(Font)              scaled to size 17.99557pt on input line 177.
 LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/b/n' will be
-(Font)              scaled to size 17.99557pt on input line 3.
+(Font)              scaled to size 17.99557pt on input line 177.
+ (./main.toc
+\thai@year=\count340
+LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/b/n' will be
+(Font)              scaled to size 16.20007pt on input line 2.
+LaTeX Font Info:    Font shape `TU/THSarabunNew(2)/m/n' will be
+(Font)              scaled to size 16.20007pt on input line 48.
+ [1] [2] [3])
+\tf@toc=\write4
+\openout4 = `main.toc'.
+
+ [4] (./main.lof
+\thai@year=\count341
+\thai@year=\count342
+\thai@year=\count343
+\thai@year=\count344
+\thai@year=\count345
+\thai@year=\count346
+\thai@year=\count347
+\thai@year=\count348
+\thai@year=\count349
+\thai@year=\count350
+\thai@year=\count351
+\thai@year=\count352
+LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/m/n' will be
+(Font)              scaled to size 10.80005pt on input line 12.
+LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/m/n' will be
+(Font)              scaled to size 8.10004pt on input line 12.
+\thai@year=\count353
+\thai@year=\count354
+\thai@year=\count355
+\thai@year=\count356
+\thai@year=\count357
+\thai@year=\count358
+)
+\tf@lof=\write5
+\openout5 = `main.lof'.
+
+ [5] (./main.lot
+\thai@year=\count359
+\thai@year=\count360
+\thai@year=\count361
+\thai@year=\count362
+\thai@year=\count363
+\thai@year=\count364
+\thai@year=\count365
+\thai@year=\count366
+\thai@year=\count367
+\thai@year=\count368
+\thai@year=\count369
+\thai@year=\count370
+\thai@year=\count371
+\thai@year=\count372
+\thai@year=\count373
+\thai@year=\count374
+\thai@year=\count375
+\thai@year=\count376
+\thai@year=\count377
+\thai@year=\count378
+)
+\tf@lot=\write6
+\openout6 = `main.lot'.
+
+ [6] (./sections/02_exp1.tex
 LaTeX Font Info:    Calculating math sizes for size <13.33> on input line 3.
 LaTeX Font Info:    External font `lmex10' loaded for size
 (Font)              <13.33> on input line 3.
@@ -734,16 +797,10 @@ LaTeX Font Info:    External font `lmex10' loaded for size
 (Font)              <9.33095> on input line 3.
 LaTeX Font Info:    External font `lmex10' loaded for size
 (Font)              <6.665> on input line 3.
-LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/b/n' will be
-(Font)              scaled to size 16.20007pt on input line 7.
  [1]
 File: images/exp1_hookes_law.jpg Graphic file (type bmp)
 <images/exp1_hookes_law.jpg>
  [2] [3] [4]
-LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/m/n' will be
-(Font)              scaled to size 10.80005pt on input line 165.
-LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/m/n' will be
-(Font)              scaled to size 8.10004pt on input line 165.
 LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/m/n' will be
 (Font)              scaled to size 13.50006pt on input line 230.
 LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/m/it' will be
@@ -766,10 +823,7 @@ LaTeX Warning: `h' float specifier changed to `ht'.
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `superscript' on input line 325.
 
-[8]) (./sections/03_exp2.tex
-LaTeX Font Info:    Font shape `TU/THSarabunNew(2)/m/n' will be
-(Font)              scaled to size 16.20007pt on input line 29.
- [9]
+[8]) (./sections/03_exp2.tex [9]
 File: images/exp2_hcsr04_pin.jpg Graphic file (type bmp)
 <images/exp2_hcsr04_pin.jpg>
 LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/m/it' will be
@@ -825,7 +879,7 @@ LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/b/n' will be
 (Font)              scaled to size 10.80005pt on input line 624.
 LaTeX Font Info:    Font shape `TU/THSarabunNew(1)/b/n' will be
 (Font)              scaled to size 8.10004pt on input line 624.
-) (./sections/04_exp3.tex
+ [20]) (./sections/04_exp3.tex
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 4.
@@ -842,7 +896,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 4.
 
-[20] [21]
+[21]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 88.
@@ -879,7 +933,7 @@ File: images/exp3_scenarioA.png Graphic file (type bmp)
 <images/exp3_scenarioA.png>
 File: images/exp3_scenarioB.png Graphic file (type bmp)
 <images/exp3_scenarioB.png>
- [27] [28] [29]) (./sections/05_exp4.tex [30] [31]
+ [27] [28] [29] [30]) (./sections/05_exp4.tex [31]
 File: images/exp4_fbd_msd.png Graphic file (type bmp)
 <images/exp4_fbd_msd.png>
  [32] [33]
@@ -893,9 +947,10 @@ File: images/exp4_simulink.png Graphic file (type bmp)
 <images/exp4_simulink.png>
 File: images/exp4_repeatability.png Graphic file (type bmp)
 <images/exp4_repeatability.png>
+ [39]
 File: images/exp4_model_fit.png Graphic file (type bmp)
 <images/exp4_model_fit.png>
- [39] [40] [41] [42]) (./sections/06_exp5.tex [43] [44] [45]
+ [40] [41] [42] [43]) (./sections/06_exp5.tex [44] [45]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 137.
@@ -958,17 +1013,16 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 [49]
 LaTeX Font Info:    Font shape `TU/THSarabunNew(2)/m/it' will be
 (Font)              scaled to size 14.04008pt on input line 404.
- [50] [51] [52]
+ [50] [51] [52] [53]
 Overfull \hbox (34.75554pt too wide) detected at line 576
 [][][][]\OML/lmm/m/it/12 A[] \OT1/lmr/m/n/12 = [] = [] \OML/lmm/m/it/12 ;  B[] \OT1/lmr/m/n/12 = [] = [] \OML/lmm/m/it/12 ;  H \OT1/lmr/m/n/12 = []
  []
 
-[53]
 File: images/fig1_freevib_positions.png Graphic file (type bmp)
 <images/fig1_freevib_positions.png>
 File: images/fig2_freevib_velocity.png Graphic file (type bmp)
 <images/fig2_freevib_velocity.png>
- [54] [55] [56]
+[54] [55] [56]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 683.
@@ -1017,9 +1071,9 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 845.
 
-[60]) (./sections/07_appendix.tex (/usr/local/texlive/2026/texmf-dist/tex/latex/listings/lstlang1.sty
+[60] [61]) (./sections/07_appendix.tex (/usr/local/texlive/2026/texmf-dist/tex/latex/listings/lstlang1.sty
 File: lstlang1.sty 2025/11/14 1.11b listings language file
-) [61]) (./main.bbl
+) [62]) (./main.bbl
 Underfull \hbox (badness 10000) in paragraph at lines 22--26
 []\TU/THSarabunNew(1)/m/n/12 Massachusetts Institute of Technology (2005).  Modeling dynamics
  []
@@ -1034,21 +1088,21 @@ Underfull \hbox (badness 10000) in paragraph at lines 22--26
 [][][] [] [][][][][][][] [] [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] []
  []
 
-[62]) [63] (./main.aux)
+) [63] (./main.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: FF1B2F13E8EFA07EEA7E9C00A451E16B;31463.
+(rerunfilecheck)             Checksum: D9B0043E83563737DE05339BF7AFDD19;32439.
  ) 
 Here is how much of TeX's memory you used:
- 19211 strings out of 468168
- 370705 string characters out of 5432815
- 1292568 words of memory out of 5000000
- 47606 multiletter control sequences out of 15000+600000
+ 19232 strings out of 468168
+ 370936 string characters out of 5432815
+ 1273568 words of memory out of 5000000
+ 47618 multiletter control sequences out of 15000+600000
  676519 words of font info for 133 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 73i,13n,96p,1273b,2311s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 73i,13n,96p,1273b,1871s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on main.pdf (64 pages).
+Output written on main.pdf (70 pages).

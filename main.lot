@@ -1,0 +1,20 @@
+\contentsline {table}{\numberline {1}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ตารางสรุปผลการทดลองหาค่า Spring Constant (เฉพาะค่าเฉลี่ย)}}{6}{table.1}%
+\contentsline {table}{\numberline {2}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ค่า Point Estimate ของ $K$ ที่แต่ละระดับโหลด}}{8}{table.2}%
+\contentsline {table}{\numberline {3}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ตารางคำนวณ Residuals สำหรับการตรวจสอบค่า $R^2$}}{8}{table.3}%
+\contentsline {table}{\numberline {4}{\ignorespaces \xpg@aux {}{thai}\ignorespaces การเชื่อมต่อ HC-SR04 กับ STM32 Nucleo G474RE}}{12}{table.4}%
+\contentsline {table}{\numberline {5}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ผลการประมวลผล Variance เฉลี่ยจาก 5 Trials, 500 Samples ต่อ Trial}}{18}{table.5}%
+\contentsline {table}{\numberline {6}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ค่า Steady-State Kalman Gain สำหรับแต่ละ $Q$ (คำนวณจากสมการ~\eqref {eq:p_ss_solution}, $R = 0.0337$~cm$^2$)}}{23}{table.6}%
+\contentsline {table}{\numberline {7}{\ignorespaces \xpg@aux {}{thai}\ignorespaces สรุป Trade-off ของผลการตอบสนองในแต่ละระดับค่า $Q$}}{23}{table.7}%
+\contentsline {table}{\numberline {8}{\ignorespaces \xpg@aux {}{thai}\ignorespaces Variance ของ Raw Data และ KF Output ที่ระยะคงที่ 10~cm (Scenario A, 3 Trials, 152 Samples ต่อ Run)}}{27}{table.8}%
+\contentsline {table}{\numberline {9}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ผลการวัด Settling Time และ Variance Reduction ของ KF ในสภาวะ MSD Free Vibration (Scenario B, 3 Trials)}}{28}{table.9}%
+\contentsline {table}{\numberline {10}{\ignorespaces \xpg@aux {}{thai}\ignorespaces สรุปค่า Quantitative เปรียบเทียบทั้ง 2 Scenario ($R = 0.0337$~cm$^2$, ค่าเฉลี่ยจาก 3 Trials)}}{29}{table.10}%
+\contentsline {table}{\numberline {11}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ผลการ Estimate พารามิเตอร์ $K$ และ $C$ จาก 5 Trials (MATLAB Parameter Estimator, Simulink Design Optimization)}}{39}{table.11}%
+\contentsline {table}{\numberline {12}{\ignorespaces \xpg@aux {}{thai}\ignorespaces สถิติของ $K$ และ $C$ ก่อนและหลังตัด Outlier}}{39}{table.12}%
+\contentsline {table}{\numberline {13}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ผลการประมาณค่าพารามิเตอร์และ Goodness-of-Fit จาก MATLAB Parameter Estimator}}{40}{table.13}%
+\contentsline {table}{\numberline {14}{\ignorespaces \xpg@aux {}{thai}\ignorespaces พารามิเตอร์สุดท้ายของระบบ Mass-Spring-Damper (เฉลี่ยจาก 4 Trials, ตัด Trial 8 ออกเป็น Outlier)}}{41}{table.14}%
+\contentsline {table}{\numberline {15}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ค่า Spring Constant $K$ ที่ใช้ในแต่ละการทดลอง}}{45}{table.15}%
+\contentsline {table}{\numberline {16}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ขนาดของ Matrix และ Vector ใน 2-State KF}}{49}{table.16}%
+\contentsline {table}{\numberline {17}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ค่าพารามิเตอร์ KF ที่ใช้ในการทดสอบ}}{55}{table.17}%
+\contentsline {table}{\numberline {18}{\ignorespaces \xpg@aux {}{thai}\ignorespaces Noise Reduction ของ KF ที่ระยะ Release ต่างกัน}}{57}{table.18}%
+\contentsline {table}{\numberline {19}{\ignorespaces \xpg@aux {}{thai}\ignorespaces ผล Sensitivity Study: Noise Reduction (\%) สำหรับ $Q$ และ $R$ ต่างๆ}}{58}{table.19}%
+\contentsline {table}{\numberline {20}{\ignorespaces \xpg@aux {}{thai}\ignorespaces เปรียบเทียบ Velocity สูงสุดระหว่างทฤษฎีและ KF Estimate}}{60}{table.20}%
