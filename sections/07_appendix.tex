@@ -1,0 +1,36 @@
+\section{ภาคผนวก}
+\subsection{สคริปต์ MATLAB สำหรับการวิเคราะห์หาค่าพารามิเตอร์ของระบบ}
+
+% สลับการตั้งค่าภาษาชั่วคราวให้รองรับ Syntax ของ MATLAB
+\lstset{language=Matlab}
+
+\begin{lstlisting}[caption={MATLAB Script for Spring Constant (K) and Damping Coefficient (C) Data Preparation}]
+clear; clc; close all;
+
+%% 1. Spring Constant (K) Calculation via Full OLS
+% Initialize arrays for measured Force (N) and Displacement (m)
+force_data = [0.000, 0.372, 0.743, 1.116, 1.488, 1.860];
+disp_data  = [0.00000, 0.01222, 0.02429, 0.03735, 0.05007, 0.06407];
+
+% Perform 1st-degree polynomial curve fitting (Linear Regression)
+% The function returns coefficients: p(1) = slope (K), p(2) = intercept (c)
+p_coeffs = polyfit(disp_data, force_data, 1);
+K_estimate = p_coeffs(1);
+c_offset   = p_coeffs(2);
+
+fprintf('=== System Parameter Estimation ===\n');
+fprintf('Estimated Spring Constant (K): %.2f N/m\n', K_estimate);
+fprintf('Systematic Measurement Offset (c): %.4f N\n', c_offset);
+
+%% 2. Damping Coefficient (C) Identification Setup
+% Load free vibration trial data from the pre-processed .mat file
+% The variables must match the workspace expected by Simulink Design Optimization
+load('ScenarioB_FreeVibration.mat', 't_ms', 'filtered_disp');
+
+% Convert timestamp to seconds for proper continuous domain scaling
+time_sec = t_ms / 1000.0;
+
+fprintf('\nData successfully loaded for Simulink Parameter Estimator.\n');
+% Note: The non-linear least squares estimation for C is executed 
+% interactively via the Simulink Parameter Estimator application.
+\end{lstlisting}
